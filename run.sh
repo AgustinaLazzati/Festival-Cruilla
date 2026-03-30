@@ -9,4 +9,4 @@
 #SBATCH -e %x_%u_%j.err # File to which STDERR will be written
 #SBATCH --gres gpu:1 # Request 1 gpu
 
-python3 /hhome/ps2g07/code/Festival-Cruilla/my_code_file.py
+python3 /hhome/ps2g07/code/Festival-Cruilla/src/models/train_auraface.py
