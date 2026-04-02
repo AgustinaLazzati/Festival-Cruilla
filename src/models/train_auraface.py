@@ -69,7 +69,7 @@ def main():
     # --- Load dataset ---
     base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, transform=None)
 
-    # Build label -> index mapping from artist names
+    # Build label: index mapping from artist names
     artist_names = [name for _, name in base_dataset.samples]
     unique_artists = sorted(set(artist_names))
     label2idx = {name: i for i, name in enumerate(unique_artists)}
