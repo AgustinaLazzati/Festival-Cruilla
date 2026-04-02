@@ -5,9 +5,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 import torch
 import numpy as np
-from torch.utils.data import DataLoader, random_split
-from auraface import AuraFaceExtractor, ArtistMLP
-import wandb
+from sklearn.model_selection import train_test_split
+from auraface import AuraFaceExtractor
+from torch.utils.data import DataLoader, TensorDataset
+
 from auraface import train
 from datasets.fake_artists_dataset import FakeArtistsDataset
 
@@ -23,41 +24,25 @@ VAL_SPLIT  = 0.2
 HIDDEN_DIM = 256
 DROPOUT    = 0.3
 
-
 # ------------------------------------------------
-# Embedding Dataset wrapper
+# Helper function to get the embeddings
 # ------------------------------------------------
-class EmbeddingDataset(torch.utils.data.Dataset):
-    """
-    Wraps FakeArtistsDataset and extracts AuraFace embeddings on-the-fly.
-    Returns (embedding_tensor, label_idx) pairs.
-    """
-    def __init__(self, fake_artists_dataset, extractor, label2idx):
-        self.dataset   = fake_artists_dataset
-        self.extractor = extractor
-        self.label2idx = label2idx
 
-        # Flatten: one entry per image (not per artist)
-        # Each item: (image_path, label_idx)
-        self.items = []
-        for image_paths, artist_name in fake_artists_dataset.samples:
-            idx = label2idx[artist_name]
-            for path in image_paths:
-                self.items.append((path, idx))
+def get_embeddings_list(dataset, extractor, label2idx):
 
-    def __len__(self):
-        return len(self.items)
+    embeddings = []
+    for image_paths, artist_name in dataset.samples:
+        idx = label2idx[artist_name]
 
-    def __getitem__(self, idx):
-        path, label_idx = self.items[idx]
-        embedding = self.extractor.get_embedding(path)
+        for path in image_paths:
+            embedding = extractor.get_embedding(path)
 
-        if embedding is None:
-            # Return a zero vector if no face detected
-            embedding = np.zeros(512, dtype=np.float32)
+            if embedding is None:
+                embedding = np.zeros(512, dtype=np.float32)
 
-        return torch.tensor(embedding, dtype=torch.float32), label_idx
-
+            embeddings.append((embedding, idx))
+        
+    return embeddings
 
 # ------------------------------------------------
 # Main
@@ -76,19 +61,27 @@ def main():
     num_classes = len(unique_artists)
     print(f"Artists: {num_classes}")
 
-    # --- Extract embeddings on-the-fly ---
+    # --- Extract embeddings ---
     extractor = AuraFaceExtractor()
-    full_dataset = EmbeddingDataset(base_dataset, extractor, label2idx)
+    full_dataset = get_embeddings_list(base_dataset, extractor, label2idx)
     print(f"Total images: {len(full_dataset)}")
 
     # --- Train/val split ---
-    val_size   = int(len(full_dataset) * VAL_SPLIT)
-    train_size = len(full_dataset) - val_size
-    train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+    embeddings, labels = zip(*full_dataset)
+    X_train, X_val, y_train, y_val = train_test_split(embeddings, labels, test_size=0.2)
+
+    train_dataset = TensorDataset(
+        torch.tensor(np.array(X_train), dtype=torch.float32),
+        torch.tensor(y_train, dtype=torch.long)
+    )
+    val_dataset = TensorDataset(
+        torch.tensor(np.array(X_val), dtype=torch.float32),
+        torch.tensor(y_val, dtype=torch.long)
+    )
 
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
     val_loader   = DataLoader(val_dataset,   batch_size=16, shuffle=False)
-    print(f"Train: {train_size} images | Val: {val_size} images")
+    print(f"Train: {len(X_train)} images | Val: {len(X_val)} images")
 
     # --- Train ---
     model = train(

@@ -64,10 +64,6 @@ class AuraFaceExtractor():
             print(f"Warning: could not read {image_path}")
             return None
 
-
-    def extract_dataset():
-        pass
-
 # ------------------------------------------------
 # MLP Classifier
 # ------------------------------------------------
