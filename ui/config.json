@@ -1,0 +1,117 @@
+{
+  "onboarding_questions": [
+    {
+      "id": "mood",
+      "question": "¿Cuál es tu mood en este momento?",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "🔥",
+          "value": "energetic",
+          "ai_description": "Tempo rápido, intenso, eufórico, banger"
+        },
+        {
+          "emoji": "🫠",
+          "value": "chill",
+          "ai_description": "Tempo lento, relajado, acústico, chill"
+        },
+        {
+          "emoji": "👽",
+          "value": "experimental",
+          "ai_description": "Tempo medio-rápido, experimental, raro, psicodélico"
+        },
+        {
+          "emoji": "🤪",
+          "value": "chaotic",
+          "ai_description": "Tempo muy rápido, caótico, divertido, ritmo saltarín"
+        }
+      ]
+    },
+    {
+      "id": "instrument",
+      "question": "¿A qué suena tu cabeza hoy? (Elige tu arma musical)",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "🎸",
+          "value": "guitar",
+          "ai_description": "Guitarras eléctricas, bajo potente, estilo Rock/Indie"
+        },
+        {
+          "emoji": "🎛️",
+          "value": "synth",
+          "ai_description": "Sintetizadores, caja de ritmos, estilo Techno/Electrónica"
+        },
+        {
+          "emoji": "🎷",
+          "value": "funk",
+          "ai_description": "Vientos, línea de bajo cálida, estilo Funk/Soul/Groove"
+        },
+        {
+          "emoji": "🥁",
+          "value": "drums",
+          "ai_description": "Beats urbanos, percusión pesada, estilo Hip-Hop/Reggaeton/Trap"
+        }
+      ]
+    },
+    {
+      "id": "fuel",
+      "question": "Tu combustible en el festival es...",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "🍻",
+          "value": "stadium",
+          "ai_description": "Sonido de estadio, himno de festival, coros grupales"
+        },
+        {
+          "emoji": "💧",
+          "value": "pop",
+          "ai_description": "Sonido limpio, fresco, pop luminoso, melodía clara"
+        },
+        {
+          "emoji": "🍕",
+          "value": "heavy",
+          "ai_description": "Sonido pesado, fat bass, contundente, stoner rock o dubstep"
+        },
+        {
+          "emoji": "🍹",
+          "value": "tropical",
+          "ai_description": "Sonido tropical, ritmos latinos, percusión caribeña, reggae"
+        }
+      ]
+    }
+  ],
+  "tribes": {
+    "electronic": {
+      "name": "Los Electrónicos",
+      "color": "#00D9FF",
+      "emoji": "⚡",
+      "genres": ["electronic", "house", "techno", "synth"]
+    },
+    "rock": {
+      "name": "Los Rockeros",
+      "color": "#FF3333",
+      "emoji": "🎸",
+      "genres": ["rock", "indie", "alternative", "metal"]
+    },
+    "hip_hop": {
+      "name": "La Crew Hip-Hop",
+      "color": "#FFD700",
+      "emoji": "🎤",
+      "genres": ["hip-hop", "rap", "trap", "reggaeton"]
+    },
+    "pop": {
+      "name": "Los Pop Stars",
+      "color": "#FF69B4",
+      "emoji": "⭐",
+      "genres": ["pop", "dance", "disco"]
+    },
+    "funk": {
+      "name": "La Crew Funk",
+      "color": "#FF8C00",
+      "emoji": "🎷",
+      "genres": ["funk", "soul", "groove"]
+    }
+  }
+}

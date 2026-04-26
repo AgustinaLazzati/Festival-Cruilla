@@ -1,5 +1,9 @@
 /.vscode
 
+# inputs and outputs will be ignored as we'll have a lot of files.
+inputs/
+outputs/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
