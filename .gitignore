@@ -1,8 +1,12 @@
-/.vscode
+wandb/
+slurm_output/
+checkpoints/
+tmp/
 
-# inputs and outputs will be ignored as we'll have a lot of files.
-inputs/
-outputs/
+/models/models/ace-step/
+/models/models/ACE-Step-1.5/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -211,9 +215,3 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-
-# logs & tmp folder
-tmp/
-logs/
-*.out
-*.err

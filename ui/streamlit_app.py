@@ -94,6 +94,9 @@ if "artist_match" not in st.session_state:
 if "generated_audio_path" not in st.session_state:
     st.session_state.generated_audio_path = None
 
+if "user_photo" not in st.session_state:
+    st.session_state.user_photo = None
+
 
 def emoji_selector(question_id: str, question_config: dict) -> str:
     """
@@ -204,17 +207,45 @@ def step_2_camera():
     st.markdown('<div class="step-indicator">PASO 2 / 6: Tu Foto</div>', unsafe_allow_html=True)
     st.markdown('<div class="question-title">Prepárate para la cámara 📸</div>', unsafe_allow_html=True)
     
-    st.info("ℹ️ Próximamente: Captura facial con cámara del stand\n\nDe momento, continuaremos sin foto.")
+    # Inicializar session state para foto
+    if "user_photo" not in st.session_state:
+        st.session_state.user_photo = None
     
-    col1, col2 = st.columns(2)
-    with col1:
+    # Captura de cámara
+    st.write("### Tómate una foto")
+    picture = st.camera_input("Haz clic para capturar")
+    
+    if picture is not None:
+        # Guardar foto en session state
+        st.session_state.user_photo = picture
+        
+        # Mostrar preview
+        st.success("✅ Foto capturada")
+        st.image(picture, caption="Tu foto", width=300)
+        
+        # Opciones
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📷 Retomar", use_container_width=True):
+                st.session_state.user_photo = None
+                st.rerun()
+        
+        with col2:
+            if st.button("← Atrás", use_container_width=True):
+                st.session_state.current_step = 1
+                st.rerun()
+        
+        with col3:
+            if st.button("Siguiente →", use_container_width=True, type="primary"):
+                st.session_state.current_step = 3
+                st.rerun()
+    
+    else:
+        st.info("📸 Por favor, captura una foto para continuar")
+        
         if st.button("← Atrás", use_container_width=True):
             st.session_state.current_step = 1
-            st.rerun()
-    
-    with col2:
-        if st.button("Siguiente →", use_container_width=True, type="primary"):
-            st.session_state.current_step = 3
             st.rerun()
 
 
@@ -316,6 +347,11 @@ def step_5_tribe():
     tribe_key = artist.get("tribe", "pop")
     tribe_info = config["tribes"].get(tribe_key, config["tribes"]["pop"])
     
+    # Mostrar foto si existe
+    if st.session_state.user_photo is not None:
+        st.image(st.session_state.user_photo, caption="Tu foto", width=200)
+        st.divider()
+    
     # Resumen visual
     col1, col2, col3 = st.columns(3)
     
@@ -355,6 +391,19 @@ def step_6_download():
     st.markdown('<div class="step-indicator">PASO 6 / 6: Llévate tu Resultado</div>', unsafe_allow_html=True)
     st.markdown('<div class="question-title">¡Comparte tu experiencia! 📱</div>', unsafe_allow_html=True)
     
+    # Mostrar resumen final
+    artist = st.session_state.artist_match
+    mood = st.session_state.user_answers.get("mood", "unknown")
+    
+    if st.session_state.user_photo is not None:
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.image(st.session_state.user_photo, caption="Tu foto", width=150)
+        with col2:
+            st.markdown(f"**Artista:** {artist['name']} ({artist['confidence']}%)")
+            st.markdown(f"**Mood:** {mood}")
+    
+    st.markdown("---")
     st.markdown("### 🔗 Próximamente: QR para descargar")
     st.info("- Tu foto\n- Porcentaje de match\n- Tu canción generada\n- Tu insignia de tribu")
     
@@ -374,6 +423,7 @@ def step_6_download():
             }
             st.session_state.artist_match = None
             st.session_state.generated_audio_path = None
+            st.session_state.user_photo = None
             st.rerun()
 
 
