@@ -58,6 +58,8 @@ def main():
     artist_names = [name for _, name in base_dataset.samples]
     unique_artists = sorted(set(artist_names))
     label2idx = {name: i for i, name in enumerate(unique_artists)}
+    idx2label = {v: k for k, v in label2idx.items()}
+
     num_classes = len(unique_artists)
     print(f"Artists: {num_classes}")
 
@@ -71,6 +73,7 @@ def main():
     print("Total Embeddings:", len(embeddings))
 
     # Visualize model embedding space
+    visualize_embeddings(embeddings, labels, method="tsne")
     visualize_embeddings(embeddings, labels, method="pca")
 
     X_train, X_val, y_train, y_val = train_test_split(embeddings, labels, test_size=0.2)
@@ -96,6 +99,29 @@ def main():
         epochs=EPOCHS,
         lr=LR,
         device=device,
+    )
+
+    # --- Visualize predictions ---
+    # comment this code if no inference or visualization is needed
+    visualize_predictions(
+        model=model,
+        extractor=extractor,
+        samples=base_dataset.samples,
+        label2idx=label2idx,
+        device=device,
+        n=5  
+    )
+
+    # --- Given an image, visualize top 3 predictions ---
+    # comment this code if no inference or visualization is needed
+    predict_top3(
+        image_path="/hhome/ps2g07/code/data/user2.jpg",
+        model=model,
+        extractor=extractor,
+        idx2label=idx2label,
+        label2idx=label2idx,
+        dataset=base_dataset,
+        device=device
     )
 
     return model
