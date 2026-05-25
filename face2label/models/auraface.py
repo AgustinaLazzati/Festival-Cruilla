@@ -69,7 +69,7 @@ class AuraFaceExtractor():
 # ------------------------------------------------
 
 class ArtistMLP(nn.Module):
-    def __init__(self, num_classes, hidden_dim=256, dropout=0.3):
+    def __init__(self, num_classes, hidden_dim=256, dropout=0.5):
         super().__init__()
 
         self.net = nn.Sequential(
@@ -91,7 +91,7 @@ class ArtistMLP(nn.Module):
 # Train and Eval functions
 # ------------------------------------------------
 
-def train(train_loader, val_loader, num_classes, epochs=100, lr=1e-3, device=None):
+def train(train_loader, val_loader, num_classes, epochs=100, lr=1e-3, weight_decay=1e-4, device=None):
 
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -104,8 +104,8 @@ def train(train_loader, val_loader, num_classes, epochs=100, lr=1e-3, device=Non
 
     # Create model, optimizer, loss
     model = ArtistMLP(num_classes=num_classes).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # Training loop
     for epoch in range(1, epochs + 1):

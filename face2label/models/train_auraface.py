@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -8,6 +9,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from auraface import AuraFaceExtractor
 from torch.utils.data import DataLoader, TensorDataset
+from torchvision import transforms
 
 from auraface import train
 from datasets.fake_artists_dataset import FakeArtistsDataset
@@ -17,12 +19,15 @@ from visualizations.vis_utils import *
 # ------------------------------------------------
 # Config
 # ------------------------------------------------
+REPO_ROOT = "/hhome/ps2g07/code/Festival-Cruilla"
 ROOT_DIR   = "/hhome/ps2g07/code/data/Fake_Artists"
-EPOCHS     = 16
+EPOCHS     = 50
 LR         = 1e-3
 VAL_SPLIT  = 0.2
 HIDDEN_DIM = 256
-DROPOUT    = 0.3
+DROPOUT    = 0.5
+weight_decay = 1e-4
+IMG_AUG = True
 
 # ------------------------------------------------
 # Helper function to get the embeddings
@@ -51,8 +56,21 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
 
+    # --- Image Augmentation ---
+    if IMG_AUG:
+        augmentation = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=15),
+            transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
+            transforms.RandomResizedCrop(size=(112, 112), scale=(0.8, 1.0)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+    else:
+        augmentation = None
+
     # --- Load dataset ---
-    base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, transform=None)
+    base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, transform=augmentation)
 
     # Build label: index mapping from artist names
     artist_names = [name for _, name in base_dataset.samples]
@@ -98,6 +116,7 @@ def main():
         num_classes=num_classes,
         epochs=EPOCHS,
         lr=LR,
+        weight_decay=weight_decay, 
         device=device,
     )
 
@@ -124,7 +143,16 @@ def main():
         device=device
     )
 
-    return model
+    # --- Save model pth file and idx2label ---
+    model_savedir = os.path.join(REPO_ROOT, "face2label/logs")
+
+    model_path = os.path.join(model_savedir, "artists_mlp.pth")
+    labels_path = os.path.join(model_savedir, "labels.json")
+
+    torch.save(model.state_dict(), model_path)
+
+    with open(labels_path, "w") as f:
+        json.dump(idx2label, f)
 
 
 if __name__ == "__main__":
