@@ -15,20 +15,28 @@ Every mapping produces vocabulary that ACE Step 1.5 was trained on:
 """
 
 from __future__ import annotations
-import os, time, uuid, requests
+import os, re, time, uuid, unicodedata, requests
 from pathlib import Path
 from typing import Optional
 
 
-# ─────────────────────────────────────────────────────────────
+def _norm(s: str) -> str:
+    """Normalise a CSV field to a plain-ASCII snake_case key."""
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = s.lower().replace("/", "_").replace("-", "_").replace(" ", "_").replace("&", "")
+    return re.sub(r"_+", "_", s).strip("_")
+
+
+# =============================================================
 # 1.  VOCABULARY MAPS
 #     Each key matches the "value" fields you already store in
 #     session_state / CSV so no extra translation is needed.
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 
-# ── 1A. MOOD ──────────────────────────────────────────────────
+# 1A. MOOD 
 MOOD_MAP: dict[str, dict] = {
-    # ── positive / energetic ──
+    # -- positive / energetic --
     "happy": {
         "tags": "euphoric, upbeat, feel-good, bright, triumphant, joyful energy",
         "desc": "radiates pure joy and euphoria, built to make a festival crowd erupt",
@@ -53,7 +61,7 @@ MOOD_MAP: dict[str, dict] = {
         "bpm_hint": "80–100 BPM",
         "key_hint": "minor key",
     },
-    # ── intense / dark ──
+    # -- intense / dark --
     "angry": {
         "tags": "intense, driven, aggressive, raw, powerful, urgent",
         "desc": "fierce and relentless, channeling raw power into every beat",
@@ -66,7 +74,7 @@ MOOD_MAP: dict[str, dict] = {
         "bpm_hint": "90–110 BPM",
         "key_hint": "minor or locrian mode",
     },
-    # ── calm / reflective ──
+    # -- calm / reflective --
     "calm": {
         "tags": "serene, meditative, flowing, peaceful, airy, spacious",
         "desc": "breathably serene, with open space and gentle forward motion",
@@ -81,7 +89,7 @@ MOOD_MAP: dict[str, dict] = {
     },
 }
 
-# ── 1B. INSTRUMENT ────────────────────────────────────────────
+# 1B. INSTRUMENT 
 INSTRUMENT_MAP: dict[str, dict] = {
     "guitar": {
         "tags": "electric guitar lead, clean Stratocaster tone, fingerpicked arpeggios, overdriven riff",
@@ -125,7 +133,7 @@ INSTRUMENT_MAP: dict[str, dict] = {
     },
 }
 
-# ── 1C. ERA ───────────────────────────────────────────────────
+# 1C. ERA 
 ERA_MAP: dict[str, dict] = {
     "60s": {
         "tags": "1960s production, mono warmth, lo-fi tape saturation, Motown soul, British Invasion",
@@ -169,97 +177,175 @@ ERA_MAP: dict[str, dict] = {
     },
 }
 
-# ── 1D. GENRE / TRIBE ─────────────────────────────────────────
+# 1D. GENRE / TRIBE
 # Describes the *sound world* without naming the matched artist.
-# Keys match genre + tribe fields from the artist-match payload.
+# Keys are the _norm()-ed versions of the Genre column in Fake_Artist.csv.
+# No alias layer needed: CSV value → _norm() → direct lookup here.
 GENRE_MAP: dict[str, dict] = {
-    # ── Urban / Latin ──
-    "reggaeton": {
-        "tags": "reggaeton, dembow rhythm, perreo groove, 808 bass thud, Latin trap hi-hats, urbano latino",
-        "desc": "locked into a dembow grid with rolling 808 sub-bass and Latin urban flair",
-        "sub_genre": "reggaeton moderno, trap latino",
+    # -- Rock family --
+    "alternative_rock": {
+        "tags": "alternative rock, jangly distorted guitar, raw emotional energy, indie grit, anthemic chorus",
+        "desc": "charged with the raw emotional power of alternative rock—distorted guitars and cathartic anthems",
+        "sub_genre": "indie rock, grunge",
     },
-    "latin_trap": {
-        "tags": "Latin trap, sliding 808, trap hi-hat rolls, dark Latin melody, drill influence, urbano",
-        "desc": "merging sliding 808s and trap hi-hat patterns with a dark Latin melodic sensibility",
-        "sub_genre": "Latin drill, afrobeats fusion",
+    "art_rock": {
+        "tags": "art rock, experimental guitar, cinematic arrangement, progressive texture, avant-garde structure",
+        "desc": "conceptually bold, fusing rock instrumentation with cinematic and experimental arrangement",
+        "sub_genre": "progressive rock, post-rock",
     },
-    "salsa": {
-        "tags": "salsa, clave rhythm, brass montuno, congas, timbales, Cuban son, Caribbean groove",
-        "desc": "driven by clave, swinging brass montunos, and infectious Caribbean percussion",
-        "sub_genre": "salsa romántica, salsa dura",
+    "blues_rock": {
+        "tags": "blues rock, overdriven guitar, bluesy string bends, raw southern grit, soulful riff",
+        "desc": "drenched in bluesy guitar bends and overdriven warmth, rooted in raw southern grit",
+        "sub_genre": "hard rock, classic rock",
     },
-    # ── Hip-Hop ──
-    "hip_hop": {
-        "tags": "hip-hop, boom-bap, sample chop, vinyl texture, punchy kick, soulful loop, urban grit",
-        "desc": "rooted in boom-bap tradition with soulful sample chops and a gritty urban energy",
-        "sub_genre": "conscious hip-hop, golden era",
+    "britpop": {
+        "tags": "britpop, jangly guitar, anthemic chorus, British swagger, lad-culture energy, 90s indie",
+        "desc": "swagger-driven and anthemic in the britpop tradition—melodic guitars, big choruses",
+        "sub_genre": "indie pop, alternative rock",
     },
-    "trap": {
-        "tags": "trap, triple hi-hats, 808 sub-bass, dark minor melody, hi-hat rolls, dark trap aesthetic",
-        "desc": "defined by rattling hi-hat rolls, thunderous 808s, and a menacing minor melody",
-        "sub_genre": "melodic trap, dark trap",
+    "folk_rock": {
+        "tags": "folk rock, acoustic guitar, organic warmth, rootsy storytelling, gentle drum groove",
+        "desc": "organic and rootsy, weaving acoustic warmth with folk songwriting and rock energy",
+        "sub_genre": "singer-songwriter, Americana",
     },
-    "drill": {
-        "tags": "drill, sliding 808, dark synth, off-beat kick, UK drill stab, menacing atmosphere",
-        "desc": "icy and minimal with sliding 808 basslines and a distinctly menacing atmosphere",
-        "sub_genre": "UK drill, NY drill",
+    "garage_rock": {
+        "tags": "garage rock, fuzzy guitar, lo-fi grit, raw power chord, stripped-back energy, punky drive",
+        "desc": "fuzzed-out and unpolished, capturing the raw kinetic intensity of a garage band",
+        "sub_genre": "punk rock, indie rock",
     },
-    # ── Electronic / Dance ──
-    "edm": {
-        "tags": "EDM, festival anthem, massive drop, supersaw lead, build-up tension, main stage energy",
-        "desc": "engineered for main-stage impact with a towering supersaw drop and crowd-lifting build",
-        "sub_genre": "progressive house, electro house",
+    "indie_rock": {
+        "tags": "indie rock, melodic jangly guitar, introspective tone, college radio energy, alt-rock warmth",
+        "desc": "introspective and melodic, built on jangly guitars and the quiet intensity of indie rock",
+        "sub_genre": "alternative rock, dream pop",
     },
-    "house": {
-        "tags": "house music, four-on-the-floor kick, soulful piano chord, deep groove, warm bass line",
-        "desc": "built on a warm four-on-the-floor groove with soulful piano chords and deep bass",
-        "sub_genre": "deep house, afro house",
+    "pop_rock": {
+        "tags": "pop rock, catchy hook, clean guitar, anthemic bridge, radio-friendly chorus, upbeat energy",
+        "desc": "radio-friendly and irresistible, with clean guitar tones, catchy hooks, and a big chorus",
+        "sub_genre": "power pop, alternative pop",
     },
-    "techno": {
-        "tags": "techno, industrial percussion, hypnotic loop, dark atmosphere, driving kick, acid bass",
-        "desc": "relentlessly hypnotic with industrial percussion and a driving, acid-inflected bassline",
-        "sub_genre": "dark techno, minimal techno",
+    "post_punk": {
+        "tags": "post-punk, angular guitar, driving bass, cold synth texture, minimal drums, dark edge",
+        "desc": "angular and driving with cold synth textures, taut bass lines, and a dark atmospheric edge",
+        "sub_genre": "new wave, gothic rock",
     },
-    "future_bass": {
-        "tags": "future bass, emotional chords, lush synth chords, pitched vocal chop, wobbly bass, euphoric drop",
-        "desc": "emotive and lush, with shimmering chord stabs and a euphoric pitched-vocal drop",
-        "sub_genre": "melodic dubstep, chillwave",
-    },
-    # ── Rock / Alternative ──
     "rock": {
         "tags": "rock, power chord, distorted guitar, driving drums, anthemic chorus, stadium rock energy",
         "desc": "charged with distorted power chords, thundering drums, and an anthemic stadium energy",
-        "sub_genre": "alternative rock, indie rock",
+        "sub_genre": "classic rock, hard rock",
     },
-    "metal": {
-        "tags": "metal, heavy riff, palm-muted chug, double kick, aggressive, distorted down-tuned guitar",
-        "desc": "brutally heavy with down-tuned riffs, palm-muted chugs, and relentless double-kick",
-        "sub_genre": "modern metal, prog metal",
+    # -- Pop family --
+    "alternative_pop": {
+        "tags": "alternative pop, emotive vocals, lush indie production, dream-pop haze, introspective hook",
+        "desc": "emotionally rich and lushly produced, blending pop accessibility with indie depth",
+        "sub_genre": "indie pop, chamber pop",
     },
-    # ── Pop ──
+    "electronic_pop": {
+        "tags": "electronic pop, synth-driven melody, danceable groove, glossy production, digital sheen, catchy hook",
+        "desc": "slick and danceable, layering catchy pop hooks over a bright synthesizer-driven production",
+        "sub_genre": "synth-pop, future pop",
+    },
+    "indie_pop": {
+        "tags": "indie pop, warm jangle, heartfelt lyric, sun-drenched melody, organic charm, bedroom pop warmth",
+        "desc": "warm and heartfelt, with a sun-drenched indie-pop jangle and deeply personal melodic voice",
+        "sub_genre": "dream pop, chamber pop",
+    },
     "pop": {
         "tags": "pop, radio-ready, hook-driven, polished production, bright melody, contemporary pop",
         "desc": "radio-optimized with an instantly memorable hook and pristine contemporary production",
         "sub_genre": "synth-pop, indie pop",
     },
-    "k_pop": {
-        "tags": "K-pop, glossy production, precise arrangement, bright synth, choreography-ready, hyper-polished",
-        "desc": "hyper-polished with the signature K-pop blend of bright synths and precision arrangement",
-        "sub_genre": "4th gen K-pop, neo soul K-pop",
+    "pop_world_music": {
+        "tags": "world pop, global rhythm, cross-cultural fusion, diverse instrumentation, international groove",
+        "desc": "globally inspired, fusing international rhythmic textures with contemporary pop songcraft",
+        "sub_genre": "world music, fusion pop",
     },
-    # ── R&B / Soul ──
-    "rnb": {
-        "tags": "R&B, smooth groove, soulful chord, neo-soul warmth, lush pad, silky production",
-        "desc": "silky and soulful, draped in warm neo-soul chords and a laid-back rhythmic pocket",
-        "sub_genre": "neo-soul, alternative R&B",
+    "urban_pop": {
+        "tags": "urban pop, contemporary R&B influence, polished street-informed groove, mainstream appeal",
+        "desc": "polished and contemporary, drawing from urban music textures with mainstream pop appeal",
+        "sub_genre": "R&B pop, contemporary pop",
     },
-    "afrobeats": {
-        "tags": "afrobeats, percussion-driven groove, highlife guitar, African rhythm, tropical melody",
-        "desc": "pulsating with infectious African-inspired rhythms and bright highlife guitar motifs",
-        "sub_genre": "afropop, afro fusion",
+    # -- Hip-hop family --
+    "hip_hop_soul": {
+        "tags": "hip-hop soul, boom-bap groove, soulful sample, warm R&B chord, conscious flow, vintage urban",
+        "desc": "rooted in the soulful intersection of hip-hop rhythm and R&B warmth—boom-bap with emotional depth",
+        "sub_genre": "conscious hip-hop, neo-soul",
     },
-    # ── Fallback ──
+    "urban_hip_hop": {
+        "tags": "urban hip-hop, hard-hitting beat, punchy 808, street energy, gritty flow, bass-heavy production",
+        "desc": "hard-hitting and bass-heavy, capturing the raw gritty energy of urban hip-hop culture",
+        "sub_genre": "trap, street rap",
+    },
+    "urban_pop_rap": {
+        "tags": "pop rap, melodic flow, mainstream hook, trap-influenced beat, crossover appeal, radio-ready rap",
+        "desc": "melodic and crossover-ready, blending rap flow with pop hooks over a trap-informed beat",
+        "sub_genre": "melodic rap, commercial hip-hop",
+    },
+    # -- Trap --
+    "urban_trap": {
+        "tags": "urban trap, sliding 808, hi-hat rolls, dark atmospheric melody, streetwear aesthetic, club energy",
+        "desc": "menacing and bass-heavy with sliding 808s, rolling hi-hats, and a dark urban melodic thread",
+        "sub_genre": "melodic trap, Latin trap",
+    },
+    # -- Electronic / Dance --
+    "electronic": {
+        "tags": "electronic, synthesizer texture, abstract beat, ambient pulse, producer-driven, experimental sound design",
+        "desc": "synthesizer-driven and producer-focused, exploring electronic sound design with an experimental edge",
+        "sub_genre": "IDM, ambient electronic",
+    },
+    "electronic_dance": {
+        "tags": "electronic dance music, four-on-the-floor kick, supersaw lead, dancefloor energy, festival drop, build-up",
+        "desc": "built for the dancefloor—driving kick, soaring synth leads, and an electrifying festival drop",
+        "sub_genre": "house, techno, trance",
+    },
+    "indie_electronic": {
+        "tags": "indie electronic, warm synthesizer, organic texture, bedroom producer, dreamy lo-fi atmosphere",
+        "desc": "intimate and dreamy, blending organic warmth with bedroom electronic production textures",
+        "sub_genre": "chillwave, synthwave",
+    },
+    "techno_brass": {
+        "tags": "techno brass, industrial groove, bold brass stab, driving techno kick, avant-garde club, hypnotic",
+        "desc": "a collision of industrial techno percussion and bold brass stabs—hypnotic, physical, and intense",
+        "sub_genre": "industrial techno, jazz fusion",
+    },
+    # -- Latin --
+    "electro_cumbia": {
+        "tags": "electro cumbia, digital cumbia beat, tropical bass, Latin groove, dancehall energy, electronic percussion",
+        "desc": "pulsating with digital cumbia rhythms layered over electronic production and tropical bass",
+        "sub_genre": "Latin electronic, tropical fusion",
+    },
+    "pop_reggae_fusion": {
+        "tags": "pop reggae, reggae off-beat guitar, melodic hook, tropical feel, radio-friendly reggae groove",
+        "desc": "breezy and melodic with a reggae rhythmic lilt and a pop songwriting heart",
+        "sub_genre": "reggaeton, dancehall pop",
+    },
+    "urban_pop_reggaeton": {
+        "tags": "reggaeton, dembow rhythm, 808 bass thud, urban Latino, perreo groove, Latin trap hi-hat",
+        "desc": "locked into a dembow grid with rolling 808 sub-bass and contemporary Latin urban flair",
+        "sub_genre": "reggaeton moderno, trap latino",
+    },
+    # -- Funk / Soul / Jazz --
+    "funk_disco": {
+        "tags": "funk disco, slap bass groove, brass stab, lush synth pad, four-on-the-floor, retro dancefloor",
+        "desc": "propelled by slap bass, punchy brass stabs, and a lush synth groove made for the dancefloor",
+        "sub_genre": "neo-soul, boogie",
+    },
+    "jazz_afrobeat": {
+        "tags": "jazz afrobeat, polyrhythmic percussion, African rhythm pattern, brass melody, organic groove, vibrant energy",
+        "desc": "vibrant and rhythmically complex, fusing jazz harmony with infectious African percussion",
+        "sub_genre": "Afrofusion, world jazz",
+    },
+    "jazz_soul": {
+        "tags": "jazz soul, warm piano chord, upright bass, soulful melody, late-night groove, harmonic richness",
+        "desc": "soulful and harmonically rich, with warm piano chords and a late-night intimate groove",
+        "sub_genre": "neo-soul, smooth jazz",
+    },
+    # -- Unique --
+    "marimba_punk": {
+        "tags": "marimba punk, resonant marimba, raw punk energy, percussion-forward, unconventional, eclectic",
+        "desc": "wildly eclectic, fusing the bright resonance of marimba with the raw kinetic energy of punk",
+        "sub_genre": "experimental, world punk",
+    },
+    # -- Fallback --
     "unknown": {
         "tags": "crossover, genre-blending, eclectic, adventurous, boundary-pushing",
         "desc": "genre-defying, blending elements from multiple traditions into something entirely fresh",
@@ -267,7 +353,7 @@ GENRE_MAP: dict[str, dict] = {
     },
 }
 
-# ── 1E. TRIBE (secondary genre from artist-match) ─────────────
+# 1E. TRIBE (secondary genre from artist-match)
 TRIBE_MAP: dict[str, str] = {
     # Cruilla tribes
     "los_salvajes":   "raw guitar power, rebellious rock energy, distorted edge",
@@ -288,7 +374,7 @@ TRIBE_MAP: dict[str, str] = {
     "world":          "world music rhythmic diversity, global melodic flavour",
 }
 
-# ── 1F. FESTIVAL QUALITY STACK ────────────────────────────────
+# 1F. FESTIVAL QUALITY STACK
 # These tags are ALWAYS appended so the model aims for
 # professional, non-lo-fi output.
 FESTIVAL_QUALITY_TAGS = (
@@ -306,9 +392,9 @@ FESTIVAL_QUALITY_DESC = (
 )
 
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 2.  CORE PROMPT BUILDER
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 
 def build_ace_prompt(
     mood: str,
@@ -329,21 +415,31 @@ def build_ace_prompt(
     Unknown values fall back to sensible defaults gracefully.
     """
 
-    # ── Normalise inputs ──
-    mood       = (mood or "happy").lower().replace(" ", "_")
-    instrument = (instrument or "synth").lower().replace(" ", "_")
-    era        = (era or "actual").lower().replace(" ", "_")
-    genre      = (genre or "pop").lower().replace(" ", "_").replace("-", "_")
-    tribe      = (tribe or "pop").lower().replace(" ", "_").replace("-", "_")
+    # -- Normalise inputs (keep raw values for logging) --
+    raw_genre = genre or "pop"
+    raw_tribe = tribe or "pop"
 
-    # ── Resolve maps (with fallbacks) ──
+    mood       = _norm(mood or "happy")
+    instrument = _norm(instrument or "synth")
+    era        = _norm(era or "actual")
+    genre      = _norm(raw_genre)
+    tribe      = _norm(raw_tribe)
+
+    # -- Resolve maps (with fallbacks) --
     m  = MOOD_MAP.get(mood,       MOOD_MAP["happy"])
     i  = INSTRUMENT_MAP.get(instrument, INSTRUMENT_MAP["synth"])
     e  = ERA_MAP.get(era,         ERA_MAP["actual"])
     g  = GENRE_MAP.get(genre,     GENRE_MAP["unknown"])
     t  = TRIBE_MAP.get(tribe,     "")
 
-    # ── Structural / timing descriptor ──
+    # -- Pipeline diagnostics --
+    genre_ok = genre in GENRE_MAP
+    tribe_ok = tribe in TRIBE_MAP
+    print(f"[prompt_builder] Genre  : '{raw_genre}'  →  key='{genre}'  →  {'OK' if genre_ok else 'FALLBACK: unknown'}")
+    print(f"[prompt_builder] Tribe  : '{raw_tribe}'  →  key='{tribe}'  →  {'OK: ' + t[:60] if tribe_ok else 'NOT FOUND (no tribe descriptor added)'}")
+    print(f"[prompt_builder] Mood={mood}  Instrument={instrument}  Era={era}  Confidence={artist_confidence}%")
+
+    # -- Structural / timing descriptor --
     if duration_seconds <= 15:
         structure_tag  = "short cinematic intro, compact motif"
         structure_desc = f"a focused {duration_seconds}-second motif with immediate impact"
@@ -360,8 +456,8 @@ def build_ace_prompt(
             "from intro through climax"
         )
 
-    # ── Confidence modifier ──
-    # High confidence → lean into the genre more specifically
+    # -- Confidence modifier --
+    # High confidence -> lean into the genre more specifically
     if artist_confidence >= 75:
         genre_weight = f"strong {g['sub_genre']} influence"
     elif artist_confidence >= 50:
@@ -369,7 +465,7 @@ def build_ace_prompt(
     else:
         genre_weight = f"subtle {genre} undertone"
 
-    # ── Assemble TAGS block ──
+    # -- Assemble TAGS block --
     tags_parts = [
         g["tags"],                  # genre first (highest weight in ACE Step)
         m["tags"],                  # mood
@@ -384,7 +480,7 @@ def build_ace_prompt(
     ]
     tags = ", ".join(filter(None, tags_parts))
 
-    # ── Assemble DESCRIPTION block ──
+    # -- Assemble DESCRIPTION block --
     tribe_clause = f", enriched with {t}" if t else ""
     description = (
         f"A {duration_seconds}-second {genre.replace('_', ' ')} melody "
@@ -397,7 +493,7 @@ def build_ace_prompt(
         f"{FESTIVAL_QUALITY_DESC}"
     )
 
-    # ── Full single-string prompt (fallback / debug) ──
+    # -- Full single-string prompt (fallback / debug) --
     full_prompt = f"[TAGS]: {tags}\n\n[DESCRIPTION]: {description}"
 
     return {
@@ -412,11 +508,11 @@ def build_ace_prompt(
     }
 
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 3.  ACE STEP 1.5 API CALLER
 #     Replace ACE_STEP_API_URL with your actual endpoint.
 #     The payload structure follows the ACE Step 1.5 HTTP spec.
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 
 ACE_STEP_API_URL = os.getenv("ACE_STEP_API_URL", "http://localhost:7860/generate")
 ACE_STEP_API_KEY = os.getenv("ACE_STEP_API_KEY", "")
@@ -438,7 +534,7 @@ def _call_ace_step(
         "description":  description,    # prose description (used by the encoder)
         "duration":     duration,
         # Recommended inference settings for festival-quality 20s clips
-        "steps":        100,            # more steps → better quality
+        "steps":        100,            # more steps for better quality
         "cfg_scale":    7.0,            # classifier-free guidance strength
         "seed":         -1,             # -1 = random seed
         "scheduler":    "euler",
@@ -475,9 +571,9 @@ def _call_ace_step(
         return {"success": False, "error": str(exc)}
 
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 4.  PUBLIC ENTRY POINT  (called from step_4_generate_music)
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 
 def generate_personalized_music(
     artist_name: str,
@@ -517,7 +613,7 @@ def generate_personalized_music(
     }
     """
 
-    # ── Build the prompt ──
+    # -- Build the prompt --
     prompt_data = build_ace_prompt(
         mood=mood,
         instrument=instrument,
@@ -528,21 +624,22 @@ def generate_personalized_music(
         duration_seconds=duration,
     )
 
-    # ── Determine output path ──
+    # -- Determine output path --
     uid          = uuid.uuid4().hex[:8]
     filename     = f"melody_{mood}_{genre}_{uid}.wav"
     output_path  = Path(output_dir) / filename
 
-    # ── Log intent (without artist name in the prompt itself) ──
-    print(
-        f"[music_generator] Generating {duration}s clip | "
-        f"artist-match: {artist_name} ({artist_confidence}%) | "
-        f"mood={mood} instrument={instrument} era={fuel} genre={genre}"
-    )
+    # -- Log intent (without artist name in the prompt itself) --
+    print(f"\n{'='*60}")
+    print(f"[music_generator] Artist : {artist_name} ({artist_confidence}% confidence)")
+    print(f"[music_generator] Genre  : {genre}")
+    print(f"[music_generator] Tribe  : {tribe or genre}")
+    print(f"[music_generator] Mood={mood}  Instrument={instrument}  Era={fuel}  Duration={duration}s")
+    print(f"{'='*60}")
     print(f"[music_generator] TAGS:\n{prompt_data['tags']}\n")
     print(f"[music_generator] DESCRIPTION:\n{prompt_data['description']}\n")
 
-    # ── Call ACE Step 1.5 ──
+    # -- Call ACE Step 1.5 --
     result = _call_ace_step(
         tags=prompt_data["tags"],
         description=prompt_data["description"],
@@ -550,7 +647,7 @@ def generate_personalized_music(
         output_path=output_path,
     )
 
-    # ── Return unified response dict ──
+    # -- Return unified response dict --
     return {
         "success":     result["success"],
         "audio_path":  result.get("audio_path"),
@@ -561,15 +658,15 @@ def generate_personalized_music(
     }
 
 
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 # 5.  QUICK CLI TEST  (python music_generator.py)
-# ─────────────────────────────────────────────────────────────
+# =============================================================
 if __name__ == "__main__":
     test_cases = [
-        dict(mood="happy",      instrument="synth",  era="actual", genre="reggaeton",   tribe="hip_hop",   confidence=78),
-        dict(mood="melancholic", instrument="piano",  era="80s",    genre="pop",         tribe="rnb",       confidence=60),
-        dict(mood="angry",      instrument="guitar", era="90s",    genre="rock",         tribe="rock",      confidence=90),
-        dict(mood="romantic",   instrument="violin", era="70s",    genre="rnb",          tribe="classical", confidence=55),
+        dict(mood="happy",       instrument="synth",  era="actual", genre="Urban Pop Reggaeton", tribe="La Calle",        confidence=78),
+        dict(mood="melancholic", instrument="piano",  era="80s",    genre="Jazz / Soul",         tribe="Los Nómadas",     confidence=60),
+        dict(mood="angry",       instrument="guitar", era="90s",    genre="Alternative Rock",    tribe="Los Salvajes",    confidence=90),
+        dict(mood="romantic",    instrument="violin", era="70s",    genre="Jazz / Afrobeat",     tribe="Los Románticos",  confidence=55),
     ]
 
     for tc in test_cases:
