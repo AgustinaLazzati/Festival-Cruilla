@@ -111,9 +111,9 @@ def step_music(
     )
 
     print(f" ------------ RESULTS ------------")
-    print(f"Genre: {artist_match.get("genre", "pop")}")
-    print(f"Tribe: {artist_match.get("tribe", artist_match.get("genre", "pop"))}")
-    print(f"Confidence: {artist_match.get("confidence", 0)}")
+    print(f"Genre: {artist_match.get('genre', 'pop')}")
+    print(f"Tribe: {artist_match.get('tribe', artist_match.get('genre', 'pop'))}")
+    print(f"Confidence: {artist_match.get('confidence', 0)}")
 
     print(f"[music] Tags: {prompt_data['tags'][:120]}...")
     print(f"[music] Initializing ACE-Step 1.5...")
