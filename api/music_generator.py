@@ -30,8 +30,6 @@ def _norm(s: str) -> str:
 
 # =============================================================
 # 1.  VOCABULARY MAPS
-#     Each key matches the "value" fields you already store in
-#     session_state / CSV so no extra translation is needed.
 # =============================================================
 
 # 1A. MOOD 
@@ -178,169 +176,167 @@ ERA_MAP: dict[str, dict] = {
 }
 
 # 1D. GENRE / TRIBE
-# Describes the *sound world* without naming the matched artist.
-# Keys are the _norm()-ed versions of the Genre column in Fake_Artist.csv.
-# No alias layer needed: CSV value → _norm() → direct lookup here.
+# Describes the -sound world- without naming the matched artist.
 GENRE_MAP: dict[str, dict] = {
     # -- Rock family --
-    "alternative_rock": {
+    "Alternative Rock": {
         "tags": "alternative rock, jangly distorted guitar, raw emotional energy, indie grit, anthemic chorus",
         "desc": "charged with the raw emotional power of alternative rock—distorted guitars and cathartic anthems",
         "sub_genre": "indie rock, grunge",
     },
-    "art_rock": {
+    "Art Rock": {
         "tags": "art rock, experimental guitar, cinematic arrangement, progressive texture, avant-garde structure",
         "desc": "conceptually bold, fusing rock instrumentation with cinematic and experimental arrangement",
         "sub_genre": "progressive rock, post-rock",
     },
-    "blues_rock": {
+    "Blues Rock": {
         "tags": "blues rock, overdriven guitar, bluesy string bends, raw southern grit, soulful riff",
         "desc": "drenched in bluesy guitar bends and overdriven warmth, rooted in raw southern grit",
         "sub_genre": "hard rock, classic rock",
     },
-    "britpop": {
+    "Britpop": {
         "tags": "britpop, jangly guitar, anthemic chorus, British swagger, lad-culture energy, 90s indie",
         "desc": "swagger-driven and anthemic in the britpop tradition—melodic guitars, big choruses",
         "sub_genre": "indie pop, alternative rock",
     },
-    "folk_rock": {
+    "Folk Rock": {
         "tags": "folk rock, acoustic guitar, organic warmth, rootsy storytelling, gentle drum groove",
         "desc": "organic and rootsy, weaving acoustic warmth with folk songwriting and rock energy",
         "sub_genre": "singer-songwriter, Americana",
     },
-    "garage_rock": {
+    "Garage Rock": {
         "tags": "garage rock, fuzzy guitar, lo-fi grit, raw power chord, stripped-back energy, punky drive",
         "desc": "fuzzed-out and unpolished, capturing the raw kinetic intensity of a garage band",
         "sub_genre": "punk rock, indie rock",
     },
-    "indie_rock": {
+    "Indie Rock": {
         "tags": "indie rock, melodic jangly guitar, introspective tone, college radio energy, alt-rock warmth",
         "desc": "introspective and melodic, built on jangly guitars and the quiet intensity of indie rock",
         "sub_genre": "alternative rock, dream pop",
     },
-    "pop_rock": {
+    "Pop Rock": {
         "tags": "pop rock, catchy hook, clean guitar, anthemic bridge, radio-friendly chorus, upbeat energy",
         "desc": "radio-friendly and irresistible, with clean guitar tones, catchy hooks, and a big chorus",
         "sub_genre": "power pop, alternative pop",
     },
-    "post_punk": {
+    "Post-Punk": {
         "tags": "post-punk, angular guitar, driving bass, cold synth texture, minimal drums, dark edge",
         "desc": "angular and driving with cold synth textures, taut bass lines, and a dark atmospheric edge",
         "sub_genre": "new wave, gothic rock",
     },
-    "rock": {
+    "Rock": {
         "tags": "rock, power chord, distorted guitar, driving drums, anthemic chorus, stadium rock energy",
         "desc": "charged with distorted power chords, thundering drums, and an anthemic stadium energy",
         "sub_genre": "classic rock, hard rock",
     },
     # -- Pop family --
-    "alternative_pop": {
+    "Alternative Pop": {
         "tags": "alternative pop, emotive vocals, lush indie production, dream-pop haze, introspective hook",
         "desc": "emotionally rich and lushly produced, blending pop accessibility with indie depth",
         "sub_genre": "indie pop, chamber pop",
     },
-    "electronic_pop": {
+    "Electronic Pop": {
         "tags": "electronic pop, synth-driven melody, danceable groove, glossy production, digital sheen, catchy hook",
         "desc": "slick and danceable, layering catchy pop hooks over a bright synthesizer-driven production",
         "sub_genre": "synth-pop, future pop",
     },
-    "indie_pop": {
+    "Indie Pop": {
         "tags": "indie pop, warm jangle, heartfelt lyric, sun-drenched melody, organic charm, bedroom pop warmth",
         "desc": "warm and heartfelt, with a sun-drenched indie-pop jangle and deeply personal melodic voice",
         "sub_genre": "dream pop, chamber pop",
     },
-    "pop": {
+    "Pop": {
         "tags": "pop, radio-ready, hook-driven, polished production, bright melody, contemporary pop",
         "desc": "radio-optimized with an instantly memorable hook and pristine contemporary production",
         "sub_genre": "synth-pop, indie pop",
     },
-    "pop_world_music": {
+    "Pop / World Music": {
         "tags": "world pop, global rhythm, cross-cultural fusion, diverse instrumentation, international groove",
         "desc": "globally inspired, fusing international rhythmic textures with contemporary pop songcraft",
         "sub_genre": "world music, fusion pop",
     },
-    "urban_pop": {
+    "Urban Pop": {
         "tags": "urban pop, contemporary R&B influence, polished street-informed groove, mainstream appeal",
         "desc": "polished and contemporary, drawing from urban music textures with mainstream pop appeal",
         "sub_genre": "R&B pop, contemporary pop",
     },
     # -- Hip-hop family --
-    "hip_hop_soul": {
+    "Hip Hop / Soul": {
         "tags": "hip-hop soul, boom-bap groove, soulful sample, warm R&B chord, conscious flow, vintage urban",
         "desc": "rooted in the soulful intersection of hip-hop rhythm and R&B warmth—boom-bap with emotional depth",
         "sub_genre": "conscious hip-hop, neo-soul",
     },
-    "urban_hip_hop": {
+    "Urban Hip Hop": {
         "tags": "urban hip-hop, hard-hitting beat, punchy 808, street energy, gritty flow, bass-heavy production",
         "desc": "hard-hitting and bass-heavy, capturing the raw gritty energy of urban hip-hop culture",
         "sub_genre": "trap, street rap",
     },
-    "urban_pop_rap": {
+    "Urban Pop Rap": {
         "tags": "pop rap, melodic flow, mainstream hook, trap-influenced beat, crossover appeal, radio-ready rap",
         "desc": "melodic and crossover-ready, blending rap flow with pop hooks over a trap-informed beat",
         "sub_genre": "melodic rap, commercial hip-hop",
     },
     # -- Trap --
-    "urban_trap": {
+    "Urban Trap": {
         "tags": "urban trap, sliding 808, hi-hat rolls, dark atmospheric melody, streetwear aesthetic, club energy",
         "desc": "menacing and bass-heavy with sliding 808s, rolling hi-hats, and a dark urban melodic thread",
         "sub_genre": "melodic trap, Latin trap",
     },
     # -- Electronic / Dance --
-    "electronic": {
+    "Electronic": {
         "tags": "electronic, synthesizer texture, abstract beat, ambient pulse, producer-driven, experimental sound design",
         "desc": "synthesizer-driven and producer-focused, exploring electronic sound design with an experimental edge",
         "sub_genre": "IDM, ambient electronic",
     },
-    "electronic_dance": {
+    "Electronic / Dance": {
         "tags": "electronic dance music, four-on-the-floor kick, supersaw lead, dancefloor energy, festival drop, build-up",
         "desc": "built for the dancefloor—driving kick, soaring synth leads, and an electrifying festival drop",
         "sub_genre": "house, techno, trance",
     },
-    "indie_electronic": {
+    "Indie Electronic": {
         "tags": "indie electronic, warm synthesizer, organic texture, bedroom producer, dreamy lo-fi atmosphere",
         "desc": "intimate and dreamy, blending organic warmth with bedroom electronic production textures",
         "sub_genre": "chillwave, synthwave",
     },
-    "techno_brass": {
+    "Techno Brass": {
         "tags": "techno brass, industrial groove, bold brass stab, driving techno kick, avant-garde club, hypnotic",
         "desc": "a collision of industrial techno percussion and bold brass stabs—hypnotic, physical, and intense",
         "sub_genre": "industrial techno, jazz fusion",
     },
     # -- Latin --
-    "electro_cumbia": {
+    "Electro Cumbia": {
         "tags": "electro cumbia, digital cumbia beat, tropical bass, Latin groove, dancehall energy, electronic percussion",
         "desc": "pulsating with digital cumbia rhythms layered over electronic production and tropical bass",
         "sub_genre": "Latin electronic, tropical fusion",
     },
-    "pop_reggae_fusion": {
+    "Pop Reggae Fusion": {
         "tags": "pop reggae, reggae off-beat guitar, melodic hook, tropical feel, radio-friendly reggae groove",
         "desc": "breezy and melodic with a reggae rhythmic lilt and a pop songwriting heart",
         "sub_genre": "reggaeton, dancehall pop",
     },
-    "urban_pop_reggaeton": {
+    "Urban Pop Reggaeton": {
         "tags": "reggaeton, dembow rhythm, 808 bass thud, urban Latino, perreo groove, Latin trap hi-hat",
         "desc": "locked into a dembow grid with rolling 808 sub-bass and contemporary Latin urban flair",
         "sub_genre": "reggaeton moderno, trap latino",
     },
     # -- Funk / Soul / Jazz --
-    "funk_disco": {
+    "Funk / Disco": {
         "tags": "funk disco, slap bass groove, brass stab, lush synth pad, four-on-the-floor, retro dancefloor",
         "desc": "propelled by slap bass, punchy brass stabs, and a lush synth groove made for the dancefloor",
         "sub_genre": "neo-soul, boogie",
     },
-    "jazz_afrobeat": {
+    "Jazz / Afrobeat": {
         "tags": "jazz afrobeat, polyrhythmic percussion, African rhythm pattern, brass melody, organic groove, vibrant energy",
         "desc": "vibrant and rhythmically complex, fusing jazz harmony with infectious African percussion",
         "sub_genre": "Afrofusion, world jazz",
     },
-    "jazz_soul": {
+    "Jazz / Soul": {
         "tags": "jazz soul, warm piano chord, upright bass, soulful melody, late-night groove, harmonic richness",
         "desc": "soulful and harmonically rich, with warm piano chords and a late-night intimate groove",
         "sub_genre": "neo-soul, smooth jazz",
     },
     # -- Unique --
-    "marimba_punk": {
+    "Marimba Punk": {
         "tags": "marimba punk, resonant marimba, raw punk energy, percussion-forward, unconventional, eclectic",
         "desc": "wildly eclectic, fusing the bright resonance of marimba with the raw kinetic energy of punk",
         "sub_genre": "experimental, world punk",
@@ -356,11 +352,11 @@ GENRE_MAP: dict[str, dict] = {
 # 1E. TRIBE (secondary genre from artist-match)
 TRIBE_MAP: dict[str, str] = {
     # Cruilla tribes
-    "los_salvajes":   "raw guitar power, rebellious rock energy, distorted edge",
-    "los_sonadores":  "electronic dreamscape, synthesizer atmosphere, nocturnal depth",
-    "los_nomadas":    "world music rhythmic diversity, jazz harmony, organic groove",
-    "los_romanticos": "melodic indie pop sensibility, heartfelt songwriting, summery warmth",
-    "la_calle":       "urban street energy, hip-hop rhythmic grit, bass-heavy urban production",
+    "Los Salvajes":   "raw guitar power, rebellious rock energy, distorted edge",
+    "Los Soñadores":  "electronic dreamscape, synthesizer atmosphere, nocturnal depth",
+    "Los Nómadas":    "world music rhythmic diversity, jazz harmony, organic groove",
+    "Los Románticos": "melodic indie pop sensibility, heartfelt songwriting, summery warmth",
+    "La Calle":       "urban street energy, hip-hop rhythmic grit, bass-heavy urban production",
     # Generic fallbacks
     "hip_hop":        "hip-hop DNA, urban rhythmic sensibility",
     "electronic":     "electronic music production instinct, synthesizer-centric",
@@ -415,16 +411,6 @@ def build_ace_prompt(
     Unknown values fall back to sensible defaults gracefully.
     """
 
-    # -- Normalise inputs (keep raw values for logging) --
-    raw_genre = genre or "pop"
-    raw_tribe = tribe or "pop"
-
-    mood       = _norm(mood or "happy")
-    instrument = _norm(instrument or "synth")
-    era        = _norm(era or "actual")
-    genre      = _norm(raw_genre)
-    tribe      = _norm(raw_tribe)
-
     # -- Resolve maps (with fallbacks) --
     m  = MOOD_MAP.get(mood,       MOOD_MAP["happy"])
     i  = INSTRUMENT_MAP.get(instrument, INSTRUMENT_MAP["synth"])
@@ -435,8 +421,8 @@ def build_ace_prompt(
     # -- Pipeline diagnostics --
     genre_ok = genre in GENRE_MAP
     tribe_ok = tribe in TRIBE_MAP
-    print(f"[prompt_builder] Genre  : '{raw_genre}'  →  key='{genre}'  →  {'OK' if genre_ok else 'FALLBACK: unknown'}")
-    print(f"[prompt_builder] Tribe  : '{raw_tribe}'  →  key='{tribe}'  →  {'OK: ' + t[:60] if tribe_ok else 'NOT FOUND (no tribe descriptor added)'}")
+    print(f"[prompt_builder] Genre  : '{genre}  →  {'OK' if genre_ok else 'FALLBACK: unknown'}")
+    print(f"[prompt_builder] Tribe  : '{tribe}'  →  {'OK: ' + t[:60] if tribe_ok else 'NOT FOUND (no tribe descriptor added)'}")
     print(f"[prompt_builder] Mood={mood}  Instrument={instrument}  Era={era}  Confidence={artist_confidence}%")
 
     # -- Structural / timing descriptor --
