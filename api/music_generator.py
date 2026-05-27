@@ -19,15 +19,6 @@ import os, re, time, uuid, unicodedata, requests
 from pathlib import Path
 from typing import Optional
 
-
-def _norm(s: str) -> str:
-    """Normalise a CSV field to a plain-ASCII snake_case key."""
-    s = unicodedata.normalize("NFKD", s)
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    s = s.lower().replace("/", "_").replace("-", "_").replace(" ", "_").replace("&", "")
-    return re.sub(r"_+", "_", s).strip("_")
-
-
 # =============================================================
 # 1.  VOCABULARY MAPS
 # =============================================================
