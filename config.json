@@ -1,0 +1,117 @@
+{
+  "onboarding_questions": [
+    {
+      "id": "mood",
+      "question": "What's your mood right now?",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "😊",
+          "value": "happy",
+          "ai_description": "Upbeat, cheerful, joyful, positive energy"
+        },
+        {
+          "emoji": "😔",
+          "value": "sad",
+          "ai_description": "Melancholic, emotional, introspective, deep"
+        },
+        {
+          "emoji": "😎",
+          "value": "chill", 
+          "ai_description": "Relaxed, cool, laid-back, ambient"
+        },
+        {
+          "emoji": "🔥",
+          "value": "hype",
+          "ai_description": "High energy, explosive, festival banger, ready to jump and dance"
+        }
+      ]
+    },
+    {
+      "id": "instrument",
+      "question": "Choose your favorite instrument sound:",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "🎸",
+          "value": "guitar",
+          "ai_description": "Electric guitar, powerful bass, Rock/Indie style"
+        },
+        {
+          "emoji": "🎹",
+          "value": "piano",
+          "ai_description": "Piano melodies, classical elements"
+        },
+        {
+          "emoji": "🎷",
+          "value": "trumpet",
+          "ai_description": "Brass, jazz vibes, warm sound"
+        },
+        {
+          "emoji": "🥁",
+          "value": "drums",
+          "ai_description": "Heavy beats, percussion, rhythmic power"
+        }
+      ]
+    },
+    {
+      "id": "era",
+      "question": "Which era resonates with you?",
+      "type": "emoji_selector",
+      "options": [
+        {
+          "emoji": "🏰",
+          "value": "medieval",
+          "ai_description": "Medieval, classical, orchestral, timeless"
+        },
+        {
+          "emoji": "📼",
+          "value": "90s",
+          "ai_description": "90s style, retro vibes, nostalgic"
+        },
+        {
+          "emoji": "🚀",
+          "value": "futuristic",
+          "ai_description": "Futuristic, electronic, cutting-edge, space-age"
+        },
+        {
+          "emoji": "✨",
+          "value": "actual",
+          "ai_description": "Modern, contemporary, current sounds"
+        }
+      ]
+    }
+  ],
+  "tribes": {
+    "los_salvajes": {
+      "name": "Los Salvajes",
+      "color": "#FF3333",
+      "emoji": "🎸",
+      "description": "Raw guitar power and rebellious rock energy"
+    },
+    "los_sonadores": {
+      "name": "Los Soñadores",
+      "color": "#00D9FF",
+      "emoji": "✨",
+      "description": "Electronic dreamscapes and synthesizer atmosphere"
+    },
+    "los_nomadas": {
+      "name": "Los Nómadas",
+      "color": "#FF8C00",
+      "emoji": "🌍",
+      "description": "World music rhythmic diversity and jazz harmony"
+    },
+    "los_romanticos": {
+      "name": "Los Románticos",
+      "color": "#FF69B4",
+      "emoji": "💫",
+      "description": "Melodic indie pop and heartfelt songwriting"
+    },
+    "la_calle": {
+      "name": "La Calle",
+      "color": "#FFD700",
+      "emoji": "🎤",
+      "description": "Urban street energy and bass-heavy hip-hop production"
+    }
+  }
+}
