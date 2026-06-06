@@ -1,35 +1,95 @@
-# ==========================================================
-# Cruïlla Clothing.py
-# Face + Pose overlay system
-# Uses CSV artist -> Signature_Look -> asset PNG
-# ==========================================================
-
 import os
 import cv2
 import mediapipe as mp
 import numpy as np
 import pandas as pd
 
-# ==========================================================
-# PATHS
-# ==========================================================
-BASE_DIR = "/export/hhome/ps2g07/code/Festival-Cruilla"
-
-INPUT_IMAGE = os.path.join(BASE_DIR, "inputs", "Prova1.jpg")
-CSV_PATH    = "/export/hhome/ps2g07/code/data/Artistas_Cruilla.csv"
-
-ASSET_DIR   = os.path.join(BASE_DIR, "inputs")
-OUTPUT_DIR  = os.path.join(BASE_DIR, "outputs")
-
-OUTPUT_PATH = os.path.join(OUTPUT_DIR, "final_result3.png")
-
-# CHANGE THIS
-ARTIST_NAME = "Garbage"
-
 
 # ==========================================================
-# LOAD PNG/JPG
+# ACCESSORY RULES
 # ==========================================================
+
+ACCESSORY_RULES = {
+    "glasses": {
+        "source": "face",
+        "left": 33,
+        "right": 263,
+        "scale_w": 1.5,
+        "shift_y": 0.0,
+    },
+    "hat": {
+        "source": "face",
+        "left": 33,
+        "right": 263,
+        "scale_w": 2.5,
+        "shift_y": -0.6,
+    },
+    "wig": {
+        "source": "face",
+        "left": 33,
+        "right": 263,
+        "scale_w": 4.5,
+        "shift_y": 0.2,
+    },
+    "necklace": {
+        "source": "pose",
+        "mode": "neck",
+        "left": 11,
+        "right": 12,
+        "scale_w": 0.62,
+        "shift_x": 0.0,
+        "shift_y": 0.05,
+        "rot_mult": 0.0,
+    },
+    "chain": {
+        "source": "pose",
+        "mode": "neck",
+        "left": 11,
+        "right": 12,
+        "scale_w": 0.75,
+        "shift_x": 0.0,
+        "shift_y": 0.00,
+        "rot_mult": 0.0,
+    },
+    "scarf": {
+        "source": "pose",
+        "left": 11,
+        "right": 12,
+        "scale_w": 0.55,
+        "shift_y": 0.10,
+        "rot_mult": 0.0,
+    },
+    "suit": {
+        "source": "pose",
+        "left": 11,
+        "right": 12,
+        "bottom_left": 23,
+        "bottom_right": 24,
+        "scale_h": 1.00,
+        "shift_y": 0.25,
+        "rot_mult": 0.0,
+    },
+}
+
+
+# ==========================================================
+# IMAGE HELPERS
+# ==========================================================
+
+def crop_transparent(img):
+    if img.shape[2] != 4:
+        return img
+
+    alpha = img[:, :, 3]
+    coords = cv2.findNonZero(alpha)
+
+    if coords is None:
+        return img
+
+    x, y, w, h = cv2.boundingRect(coords)
+    return img[y:y + h, x:x + w]
+
+
 def load_asset(path):
     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
 
@@ -39,31 +99,39 @@ def load_asset(path):
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGRA)
 
-    if img.shape[2] == 3:
-        bgr = img
-        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        _, alpha = cv2.threshold(gray, 245, 255, cv2.THRESH_BINARY_INV)
+    elif img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
 
-        bgra = cv2.cvtColor(bgr, cv2.COLOR_BGR2BGRA)
-        bgra[:, :, 3] = alpha
-        img = bgra
-
-    return img
+    return crop_transparent(img)
 
 
-# ==========================================================
-# OVERLAY
-# ==========================================================
+def rotate_image(img, angle):
+    h, w = img.shape[:2]
+    center = (w // 2, h // 2)
+
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+
+    rotated = cv2.warpAffine(
+        img,
+        matrix,
+        (w, h),
+        flags=cv2.INTER_LINEAR,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=(0, 0, 0, 0),
+    )
+
+    return crop_transparent(rotated)
+
+
 def overlay(bg, fg, x, y, w, h):
+    if w <= 0 or h <= 0:
+        return bg
 
-    fg = cv2.resize(fg, (w, h))
+    fg = cv2.resize(fg, (w, h), interpolation=cv2.INTER_AREA)
 
     H, W = bg.shape[:2]
 
-    if x >= W or y >= H:
-        return bg
-
-    if x + w <= 0 or y + h <= 0:
+    if x >= W or y >= H or x + w <= 0 or y + h <= 0:
         return bg
 
     x1 = max(x, 0)
@@ -90,13 +158,13 @@ def overlay(bg, fg, x, y, w, h):
 
 
 # ==========================================================
-# CSV LOOKUP
+# CSV + ASSET HELPERS
 # ==========================================================
-def get_signature(artist):
 
-    df = pd.read_csv(CSV_PATH)
+def get_signature(artist_name, csv_path):
+    df = pd.read_csv(csv_path)
 
-    row = df[df["Artist"].str.lower() == artist.lower()]
+    row = df[df["Artist"].str.lower() == artist_name.lower()]
 
     if row.empty:
         return None
@@ -104,45 +172,115 @@ def get_signature(artist):
     return row.iloc[0]["Signature_Look"]
 
 
-# ==========================================================
-# MAP CSV LOOK -> FILE
-# ==========================================================
-def asset_file(signature):
-
-    return os.path.join(ASSET_DIR, signature + ".png")
+def asset_file(signature, asset_dir):
+    return os.path.join(asset_dir, signature + ".png")
 
 
 # ==========================================================
-# MAIN
+# PLACEMENT
 # ==========================================================
-def main():
 
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
+    if rule["source"] == "face":
+        if face is None:
+            print("[clothing] Face landmarks needed but not found.")
+            return img
+        lm = face
 
-    img = cv2.imread(INPUT_IMAGE)
+    elif rule["source"] == "pose":
+        if pose is None:
+            print("[clothing] Pose landmarks needed but not found.")
+            return img
+        lm = pose.landmark
+
+    else:
+        return img
+
+    p1 = lm[rule["left"]]
+    p2 = lm[rule["right"]]
+
+    lx, ly = int(p1.x * W), int(p1.y * H)
+    rx, ry = int(p2.x * W), int(p2.y * H)
+
+    raw_angle = np.degrees(np.arctan2(ry - ly, rx - lx))
+    angle = raw_angle * rule.get("rot_mult", 1.0)
+
+    acc = rotate_image(accessory, angle)
+
+    asset_h, asset_w = acc.shape[:2]
+    aspect = asset_h / asset_w
+
+    if "bottom_left" in rule and "bottom_right" in rule:
+        b1 = lm[rule["bottom_left"]]
+        b2 = lm[rule["bottom_right"]]
+
+        bl_y = int(b1.y * H)
+        br_y = int(b2.y * H)
+
+        shoulder_y = (ly + ry) / 2
+        hip_y = (bl_y + br_y) / 2
+
+        torso_height = abs(hip_y - shoulder_y)
+
+        h = int(torso_height * rule.get("scale_h", 1.0))
+        w = int(h / aspect)
+
+    else:
+        anchor_dist = abs(rx - lx)
+        w = int(anchor_dist * rule["scale_w"])
+        h = int(w * aspect)
+
+    cx = (lx + rx) // 2
+    cy = (ly + ry) // 2
+
+    shift_x = rule.get("shift_x", 0.0)
+    shift_y = rule.get("shift_y", 0.0)
+
+    x = int(cx - w / 2 + w * shift_x)
+    y = int(cy - h / 2 + h * shift_y)
+
+    return overlay(img, acc, x, y, w, h)
+
+
+# ==========================================================
+# PIPELINE FUNCTION CALLED FROM main.py
+# ==========================================================
+
+def apply_look(
+    user_image_path: str,
+    artist_name: str,
+    output_path: str,
+    csv_path: str,
+    asset_dir: str,
+) -> str | None:
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+    img = cv2.imread(user_image_path)
 
     if img is None:
-        print("Cannot open input image")
-        return
+        print(f"[clothing] Cannot open input image: {user_image_path}")
+        return None
 
-    H, W = img.shape[:2]
-
-    signature = get_signature(ARTIST_NAME)
+    signature = get_signature(artist_name, csv_path)
 
     if signature is None:
-        print("Artist not found in CSV")
-        return
+        print(f"[clothing] Artist not found in CSV: {artist_name}")
+        return None
 
-    print("Artist:", ARTIST_NAME)
-    print("Look:", signature)
+    signature = str(signature).strip()
+    signature_lower = signature.lower()
 
-    asset_path = asset_file(signature)
-
+    asset_path = asset_file(signature, asset_dir)
     accessory = load_asset(asset_path)
 
     if accessory is None:
-        print("Missing asset:", asset_path)
-        return
+        print(f"[clothing] Missing asset: {asset_path}")
+        return None
+
+    print(f"[clothing] Artist: {artist_name}")
+    print(f"[clothing] Signature look: {signature}")
+
+    H, W = img.shape[:2]
 
     mp_face = mp.solutions.face_mesh
     mp_pose = mp.solutions.pose
@@ -150,9 +288,9 @@ def main():
     with mp_face.FaceMesh(
         static_image_mode=True,
         max_num_faces=1,
-        refine_landmarks=True
+        refine_landmarks=True,
     ) as face_mesh, mp_pose.Pose(
-        static_image_mode=True
+        static_image_mode=True,
     ) as pose:
 
         rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -160,79 +298,36 @@ def main():
         face_result = face_mesh.process(rgb)
         pose_result = pose.process(rgb)
 
-        # --------------------------------------------------
-        # FACE ITEMS
-        # --------------------------------------------------
-        if "glasses" in signature or "hat" in signature or "wig" in signature:
+        face_landmarks = None
+        if face_result.multi_face_landmarks:
+            face_landmarks = face_result.multi_face_landmarks[0].landmark
 
-            if face_result.multi_face_landmarks:
+        pose_landmarks = pose_result.pose_landmarks
 
-                face = face_result.multi_face_landmarks[0].landmark
+        applied = False
 
-                left_eye = face[33]
-                right_eye = face[263]
-                forehead = face[10]
+        for key, rule in ACCESSORY_RULES.items():
+            if key in signature_lower:
+                img = place_accessory_dynamically(
+                    img=img,
+                    accessory=accessory,
+                    rule=rule,
+                    face=face_landmarks,
+                    pose=pose_landmarks,
+                    W=W,
+                    H=H,
+                )
+                applied = True
+                break
 
-                lx = int(left_eye.x * W)
-                rx = int(right_eye.x * W)
-                ey = int(left_eye.y * H)
+        if not applied:
+            print(
+                f"[clothing] Unsupported accessory type: {signature}. "
+                f"Add a matching keyword to ACCESSORY_RULES."
+            )
+            return None
 
-                fx = int(forehead.x * W)
-                fy = int(forehead.y * H)
+    cv2.imwrite(output_path, img)
+    print(f"[clothing] Saved: {output_path}")
 
-                eye_w = abs(rx - lx)
-
-                # Glasses
-                if "glasses" in signature:
-                    w = int(eye_w * 1.8)
-                    h = int(w * 0.45)
-                    x = int((lx + rx)/2 - w/2)
-                    y = ey - h//2
-                    img[:] = overlay(img, accessory, x, y, w, h)
-
-                # Hat / Wig
-                else:
-                    w = int(eye_w * 2.3)
-                    h = int(w * 0.9)
-                    x = fx - w//2
-                    y = fy - h + 20
-                    img[:] = overlay(img, accessory, x, y, w, h)
-
-        # --------------------------------------------------
-        # BODY ITEMS
-        # --------------------------------------------------
-        else:
-
-            if pose_result.pose_landmarks:
-
-                lm = pose_result.pose_landmarks.landmark
-
-                ls = lm[11]
-                rs = lm[12]
-                lh = lm[23]
-                rh = lm[24]
-
-                x1 = int(min(ls.x, rs.x) * W)
-                x2 = int(max(ls.x, rs.x) * W)
-
-                y1 = int(min(ls.y, rs.y) * H)
-                y2 = int(max(lh.y, rh.y) * H)
-
-                torso_w = x2 - x1
-                torso_h = y2 - y1
-
-                w = int(torso_w * 1.8)
-                h = int(torso_h * 1.5)
-
-                x = int((x1 + x2)/2 - w/2)
-                y = y1 - 20
-
-                img[:] = overlay(img, accessory, x, y, w, h)
-
-    cv2.imwrite(OUTPUT_PATH, img)
-
-    print("Saved:", OUTPUT_PATH)
-
-
-if __name__ == "__main__":
-    main()
+    return output_path
