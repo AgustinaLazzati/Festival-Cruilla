@@ -14,6 +14,7 @@ from torchvision import transforms
 from auraface import train
 from datasets.fake_artists_dataset import FakeArtistsDataset
 from visualizations.vis_utils import *
+from predictor import ArtistPredictor
 
 
 # ------------------------------------------------
@@ -28,6 +29,7 @@ HIDDEN_DIM = 256
 DROPOUT    = 0.5
 weight_decay = 1e-4
 IMG_AUG = True
+EVAL_ONLY = False
 
 # ------------------------------------------------
 # Helper function to get the embeddings
@@ -94,7 +96,9 @@ def main():
     visualize_embeddings(embeddings, labels, method="tsne")
     visualize_embeddings(embeddings, labels, method="pca")
 
-    X_train, X_val, y_train, y_val = train_test_split(embeddings, labels, test_size=0.2)
+    X_train, X_val, y_train, y_val = train_test_split(
+        embeddings, labels, test_size=0.2, random_state=42
+    )
 
     train_dataset = TensorDataset(
         torch.tensor(np.array(X_train), dtype=torch.float32),
@@ -109,51 +113,62 @@ def main():
     val_loader   = DataLoader(val_dataset,   batch_size=16, shuffle=False)
     print(f"Train: {len(X_train)} images | Val: {len(X_val)} images")
 
-    # --- Train ---
-    model = train(
-        train_loader=train_loader,
-        val_loader=val_loader,
-        num_classes=num_classes,
-        epochs=EPOCHS,
-        lr=LR,
-        weight_decay=weight_decay, 
-        device=device,
+    if not EVAL_ONLY:
+        # --- Train ---
+        model = train(
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_classes=num_classes,
+            epochs=EPOCHS,
+            lr=LR,
+            weight_decay=weight_decay, 
+            device=device,
+        )
+
+        # --- Visualize predictions ---
+        # comment this code if no inference or visualization is needed
+        visualize_predictions(
+            model=model,
+            extractor=extractor,
+            samples=base_dataset.samples,
+            label2idx=label2idx,
+            device=device,
+            n=5  
+        )
+
+        # --- Given an image, visualize top 3 predictions ---
+        # comment this code if no inference or visualization is needed
+        predict_top3(
+            image_path="/hhome/ps2g07/code/data/user2.jpg",
+            model=model,
+            extractor=extractor,
+            idx2label=idx2label,
+            label2idx=label2idx,
+            dataset=base_dataset,
+            device=device
+        )
+
+        # --- Save model pth file and idx2label ---
+        model_savedir = os.path.join(REPO_ROOT, "face2label/logs")
+
+        model_path = os.path.join(model_savedir, "artists_mlp.pth")
+        labels_path = os.path.join(model_savedir, "labels.json")
+
+        torch.save(model.state_dict(), model_path)
+
+        with open(labels_path, "w") as f:
+            json.dump(idx2label, f)
+
+    # load only model + labels, skip re-extracting embeddings
+    predictor = ArtistPredictor(
+        model_path=os.path.join(REPO_ROOT, "face2label/logs/artists_mlp.pth"),
+        labels_path=os.path.join(REPO_ROOT, "face2label/logs/labels.json"),
+        metadata_path="/hhome/ps2g07/code/data/Fake_Artist.csv",
     )
 
-    # --- Visualize predictions ---
-    # comment this code if no inference or visualization is needed
-    visualize_predictions(
-        model=model,
-        extractor=extractor,
-        samples=base_dataset.samples,
-        label2idx=label2idx,
-        device=device,
-        n=5  
-    )
-
-    # --- Given an image, visualize top 3 predictions ---
-    # comment this code if no inference or visualization is needed
-    predict_top3(
-        image_path="/hhome/ps2g07/code/data/user2.jpg",
-        model=model,
-        extractor=extractor,
-        idx2label=idx2label,
-        label2idx=label2idx,
-        dataset=base_dataset,
-        device=device
-    )
-
-    # --- Save model pth file and idx2label ---
-    model_savedir = os.path.join(REPO_ROOT, "face2label/logs")
-
-    model_path = os.path.join(model_savedir, "artists_mlp.pth")
-    labels_path = os.path.join(model_savedir, "labels.json")
-
-    torch.save(model.state_dict(), model_path)
-
-    with open(labels_path, "w") as f:
-        json.dump(idx2label, f)
-
+    results = predictor.evaluate(val_loader, ks=(1, 3, 5))
+    for k, acc in results.items():
+        print(f"Top-{k} accuracy: {acc:.2%}")
 
 if __name__ == "__main__":
     main()
