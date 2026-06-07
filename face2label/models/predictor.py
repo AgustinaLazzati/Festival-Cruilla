@@ -64,3 +64,42 @@ class ArtistPredictor:
             "genre": self.genre_map.get(artist_name, "Unknown"),
             "tribe": self.tribe_map.get(artist_name, "Unknown"),
         }
+
+    def evaluate(self, val_loader, ks=(1, 3, 5)):
+        """
+        Compute top-k accuracy on a validation DataLoader.
+
+        Args:
+            val_loader: DataLoader yielding (embedding_tensor, label_tensor) batches.
+            ks:         Tuple of k values to evaluate. Default: (1, 3, 5).
+
+        Returns:
+            dict mapping k -> accuracy (float between 0 and 1).
+        """
+        self.model.eval()
+        correct = {k: 0 for k in ks}
+        total = 0
+
+        with torch.no_grad():
+            for embeddings, labels in val_loader:
+                embeddings = embeddings.to(self.device)
+                labels = labels.to(self.device)
+
+                logits = self.model(embeddings)
+                probs = torch.softmax(logits, dim=1)
+
+                max_k = max(ks)
+                # topk_preds: (batch_size, max_k) — predicted indices, sorted by prob
+                _, topk_preds = torch.topk(probs, k=max_k, dim=1)
+
+                batch_size = labels.size(0)
+                total += batch_size
+
+                for k in ks:
+                    # Check if the true label appears in the top-k predictions
+                    top_k = topk_preds[:, :k]          # (batch_size, k)
+                    labels_expanded = labels.unsqueeze(1).expand_as(top_k)
+                    correct[k] += (top_k == labels_expanded).any(dim=1).sum().item()
+
+        return {k: correct[k] / total for k in ks}
+
