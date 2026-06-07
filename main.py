@@ -20,17 +20,17 @@ sys.path.insert(0, str(REPO_ROOT / "models" / "ACE-Step-1.5"))
 # ── Default artifact paths ─────────────────────────────────────────────────
 MODEL_PATH    = REPO_ROOT / "face2label" / "logs" / "artists_mlp.pth"
 LABELS_PATH   = REPO_ROOT / "face2label" / "logs" / "labels.json"
-METADATA_PATH = Path("/export/hhome/ps2g07/code/data/Fake_Artist.csv")
+METADATA_PATH = Path("/home/spG07/data/Fake_Artist.csv")
 ASSET_DIR     = REPO_ROOT / "inputs"
 OUTPUT_DIR    = REPO_ROOT / "outputs"
 
-# ── Tribe → background image mapping ──────────────────────────────────────
+# ── Tribe to background image mapping ──────────────────────────────────────
 TRIBE_BACKGROUNDS: dict[str, str] = {
-    "la calle":       str(ASSET_DIR / "backgrounds" / "bg_la_calle.png"),
-    "los salvajes":   str(ASSET_DIR / "backgrounds" / "bg_los_salvajes.png"),
-    "los romanticos": str(ASSET_DIR / "backgrounds" / "bg_los_romanticos.png"),
-    "los nomadas":    str(ASSET_DIR / "backgrounds" / "bg_los_nomadas.png"),
-    "los sonadores":  str(ASSET_DIR / "backgrounds" / "bg_los_sonadores.png"),
+    "la calle":       str(ASSET_DIR / "bg_la_calle.png"),
+    "los salvajes":   str(ASSET_DIR / "bg_los_salvajes.png"),
+    "los romanticos": str(ASSET_DIR / "bg_los_romanticos.png"),
+    "los nomadas":    str(ASSET_DIR / "bg_los_nomadas.png"),
+    "los sonadores":  str(ASSET_DIR / "bg_los_sonadores.png"),
 }
 
 TEXT_BAND_FRACTION = 0.22     

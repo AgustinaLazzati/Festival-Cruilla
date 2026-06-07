@@ -25,56 +25,29 @@ from typing import Optional
 
 # 1A. MOOD 
 MOOD_MAP: dict[str, dict] = {
-    # -- positive / energetic --
     "happy": {
         "tags": "euphoric, upbeat, feel-good, bright, triumphant, joyful energy",
         "desc": "radiates pure joy and euphoria, built to make a festival crowd erupt",
         "bpm_hint": "120–128 BPM",
         "key_hint": "major key",
     },
-    "excited": {
-        "tags": "high-energy, adrenaline, electric, festival anthem, peak-time, explosive",
-        "desc": "explosive peak-time energy engineered for the main stage drop",
-        "bpm_hint": "128–140 BPM",
-        "key_hint": "major key",
+    "sad": {
+        "tags": "nostalgic, vintage warmth, retro soul, timeless, evocative, wistful",
+        "desc": "drenched in warm vintage color, summoning a place that no longer exists",
+        "bpm_hint": "85–100 BPM",
+        "key_hint": "major or mixolydian mode",
     },
-    "romantic": {
-        "tags": "sensual, warm, lush, intimate, dreamy, passionate",
-        "desc": "deeply sensual and warm, with a slow-burn tension that feels cinematic",
-        "bpm_hint": "70–90 BPM",
-        "key_hint": "minor or dorian mode",
-    },
-    "melancholic": {
-        "tags": "melancholic, introspective, bittersweet, emotional depth, wistful, haunting",
-        "desc": "emotionally charged and introspective, evoking bittersweet nostalgia",
-        "bpm_hint": "80–100 BPM",
-        "key_hint": "minor key",
-    },
-    # -- intense / dark --
-    "angry": {
-        "tags": "intense, driven, aggressive, raw, powerful, urgent",
-        "desc": "fierce and relentless, channeling raw power into every beat",
-        "bpm_hint": "140–160 BPM",
-        "key_hint": "minor or phrygian mode",
-    },
-    "dark": {
-        "tags": "dark, brooding, cinematic tension, mysterious, ominous, atmospheric",
-        "desc": "brooding and cinematic, dripping with tension and shadowy atmosphere",
-        "bpm_hint": "90–110 BPM",
-        "key_hint": "minor or locrian mode",
-    },
-    # -- calm / reflective --
-    "calm": {
+    "chill": {
         "tags": "serene, meditative, flowing, peaceful, airy, spacious",
         "desc": "breathably serene, with open space and gentle forward motion",
         "bpm_hint": "60–80 BPM",
         "key_hint": "major or lydian mode",
     },
-    "nostalgic": {
-        "tags": "nostalgic, vintage warmth, retro soul, timeless, evocative, wistful",
-        "desc": "drenched in warm vintage color, summoning a place that no longer exists",
-        "bpm_hint": "85–100 BPM",
-        "key_hint": "major or mixolydian mode",
+    "hype": {
+        "tags": "high-energy, adrenaline, electric, festival anthem, peak-time, explosive",
+        "desc": "explosive peak-time energy engineered for the main stage drop",
+        "bpm_hint": "128–140 BPM",
+        "key_hint": "major key",
     },
 }
 
@@ -85,84 +58,44 @@ INSTRUMENT_MAP: dict[str, dict] = {
         "desc": "driven by expressive guitar work ranging from clean arpeggios to saturated riffs",
         "texture": "organic, string-forward, mid-range warmth",
     },
-    "acoustic_guitar": {
-        "tags": "acoustic guitar, fingerstyle, resonant body, campfire warmth, nylon string",
-        "desc": "anchored by an intimate acoustic guitar with natural room resonance",
-        "texture": "warm, organic, unplugged intimacy",
-    },
     "piano": {
         "tags": "concert grand piano, melodic piano runs, harmonic piano chords, sustained notes",
         "desc": "built around a grand piano delivering rich harmonic depth and melodic clarity",
         "texture": "dynamic range, classical meeting contemporary",
-    },
-    "synth": {
-        "tags": "analog synthesizer lead, polysynth pads, modular textures, detuned supersaws, lush synth strings",
-        "desc": "propelled by layered synthesizers from evolving pads to cutting lead lines",
-        "texture": "electronic shimmer, lush harmonic overtones",
-    },
-    "drums": {
-        "tags": "live drum kit, tight snare, punchy kick, driving rhythm, polyrhythmic percussion",
-        "desc": "percussion-forward with a tight, punchy live drum feel at its core",
-        "texture": "rhythmic backbone, kinetic, full-body impact",
-    },
-    "bass": {
-        "tags": "electric bass guitar, sub-bass rumble, slap bass groove, deep low end, walking bass line",
-        "desc": "rooted in a thick, grooving bass line that anchors the entire arrangement",
-        "texture": "low-end weight, groove-centric, physical impact",
-    },
-    "violin": {
-        "tags": "solo violin, soaring strings, legato bowing, orchestral strings, vibrato, cinematic strings",
-        "desc": "led by soaring violin lines layered over lush orchestral string textures",
-        "texture": "cinematic sweep, emotional resonance, classical gravitas",
     },
     "trumpet": {
         "tags": "solo trumpet, brass section stabs, muted trumpet, jazz brass, fanfare horn",
         "desc": "punctuated by bold brass—ranging from muted jazz nuance to triumphant fanfares",
         "texture": "bright, projecting, celebratory edge",
     },
+    "drums": {
+        "tags": "live drum kit, tight snare, punchy kick, driving rhythm, polyrhythmic percussion",
+        "desc": "percussion-forward with a tight, punchy live drum feel at its core",
+        "texture": "rhythmic backbone, kinetic, full-body impact",
+    },
 }
 
 # 1C. ERA 
 ERA_MAP: dict[str, dict] = {
-    "60s": {
-        "tags": "1960s production, mono warmth, lo-fi tape saturation, Motown soul, British Invasion",
-        "desc": "produced with 1960s analogue tape warmth and a vintage mono aesthetic",
-        "production": "tape saturation, room reverb, minimal processing",
-    },
-    "70s": {
-        "tags": "1970s, warm analogue mix, disco groove, funk influence, vinyl crackle, AM radio warmth",
-        "desc": "steeped in 1970s analogue richness with a funky, warm vinyl character",
-        "production": "thick analogue saturation, live room feel, prominent bass",
-    },
-    "80s": {
-        "tags": "1980s, gated reverb drums, DX7 synth pads, New Wave, power ballad production, retro-futuristic",
-        "desc": "channeling 1980s bombast—gated snare, shimmering DX7 pads, and a cinematic reverb wash",
-        "production": "gated reverb, digital synths, layered synth pads, big room sound",
+    "medieval": {
+        "tags": "medieval era, acoustic resonance, natural reverb, troubadour folk, Gregorian chant",
+        "desc": "produced with acoustic instruments and natural spatial resonance evoking the medieval era",
+        "production": "lute, recorder, hurdy-gurdy, stone hall reverb, no electronic processing",
     },
     "90s": {
         "tags": "1990s, lo-fi grunge warmth, boom-bap hip-hop, alternative rock, Britpop, shoegaze wall of sound",
         "desc": "carries the raw analogue warmth and emotional directness of 1990s alternative and hip-hop",
         "production": "analogue warmth, slight saturation, lo-fi tape hiss, live drum recording",
     },
-    "2000s": {
-        "tags": "2000s pop-rock, polished digital production, Pro Tools era, maximalist mix, early EDM influence",
-        "desc": "polished with early 2000s digital clarity—punchy, radio-ready, and precisely mixed",
-        "production": "digital clarity, maximalist layering, compressed punchy mix",
-    },
-    "2010s": {
-        "tags": "2010s, EDM drop structure, trap hi-hats, future bass, heavy sidechain, streaming-era production",
-        "desc": "built on 2010s production DNA—sidechain pumping, trap-influenced rhythms, festival-ready drops",
-        "production": "heavy sidechain compression, 808 sub-bass, trap hi-hats, future bass chords",
+    "futuristic": {
+        "tags": "futuristic, hyperpop, glitchy, experimental electronic, AI-generated textures, avant-garde",
+        "desc": "pushed into a futuristic sound design space with glitchy, hypermodern textures",
+        "production": "pitch-shifted vocals, granular synthesis, extreme processing, generative textures",
     },
     "actual": {
         "tags": "contemporary 2024 production, hi-fi master, modern mix, streaming-optimized, crystal-clear audio",
         "desc": "mastered to modern streaming standards—wide stereo field, punchy transients, immaculate detail",
         "production": "modern mastering, wide stereo image, loudness normalization, crisp high-end",
-    },
-    "futuristic": {
-        "tags": "futuristic, hyperpop, glitchy, experimental electronic, AI-generated textures, avant-garde",
-        "desc": "pushed into a futuristic sound design space with glitchy, hypermodern textures",
-        "production": "pitch-shifted vocals, granular synthesis, extreme processing, generative textures",
     },
 }
 
@@ -404,7 +337,7 @@ def build_ace_prompt(
 
     # -- Resolve maps (with fallbacks) --
     m  = MOOD_MAP.get(mood,       MOOD_MAP["happy"])
-    i  = INSTRUMENT_MAP.get(instrument, INSTRUMENT_MAP["synth"])
+    i  = INSTRUMENT_MAP.get(instrument, INSTRUMENT_MAP["guitar"])
     e  = ERA_MAP.get(era,         ERA_MAP["actual"])
     g  = GENRE_MAP.get(genre,     GENRE_MAP["unknown"])
     t  = TRIBE_MAP.get(tribe,     "")
@@ -420,7 +353,7 @@ def build_ace_prompt(
     if duration_seconds <= 15:
         structure_tag  = "short cinematic intro, compact motif"
         structure_desc = f"a focused {duration_seconds}-second motif with immediate impact"
-    elif duration_seconds <= 25:
+    elif duration_seconds == 20:
         structure_tag  = "20-second melodic loop, festival intro, loop-ready arrangement"
         structure_desc = (
             f"a perfectly loopable {duration_seconds}-second arrangement with a clear "
@@ -435,9 +368,9 @@ def build_ace_prompt(
 
     # -- Confidence modifier --
     # High confidence -> lean into the genre more specifically
-    if artist_confidence >= 75:
+    if artist_confidence >= 10:
         genre_weight = f"strong {g['sub_genre']} influence"
-    elif artist_confidence >= 50:
+    elif artist_confidence >= 5:
         genre_weight = f"clear {g['sub_genre']} sensibility"
     else:
         genre_weight = f"subtle {genre} undertone"

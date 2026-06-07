@@ -19,8 +19,8 @@ from visualizations.vis_utils import *
 # ------------------------------------------------
 # Config
 # ------------------------------------------------
-REPO_ROOT = "/hhome/ps2g07/code/Festival-Cruilla"
-ROOT_DIR   = "/hhome/ps2g07/code/data/Fake_Artists"
+REPO_ROOT = "/home/spG07/code/Festival-Cruilla"
+ROOT_DIR   = "/home/spG07/data/Fake_Artists"
 EPOCHS     = 50
 LR         = 1e-3
 VAL_SPLIT  = 0.2
