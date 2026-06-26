@@ -18,19 +18,19 @@ The system identifies which musical artist the attendee resembles most, maps the
 
 The pipeline runs five sequential steps composing 3 main flows:
 
-**Step 1 — Face → Artist Label (`face2label`)**
+**Step 1. Face → Artist Label (`face2label`)**
 A trained MLP model analyzes the user's face and matches it to the closest artist in the Cruilla lineup. Returns the matched artist's name, genre, tribe, and confidence score.
 
-**Step 2 — Clothing / Accessory Overlay (`clothing`)**
+**Step 2. Clothing / Accessory Overlay (`clothing`)**
 Applies the matched artist's signature look and accessories to the user's photo using style transfer.
 
-**Step 3 — Music Generation (`api/music_generator` + ACE-Step 1.5)**
+**Step 3. Music Generation (`api/music_generator` + ACE-Step 1.5)**
 Builds a personalized prompt from the artist match and user answers (mood, instrument, era) and generates a ~20-second melody using the local ACE-Step 1.5 model.
 
-**Step 4 — Tribe Background Composite (`background`)**
+**Step 4. Tribe Background Composite (`background`)**
 Removes the background from the styled photo using `rembg` and composites the subject onto a tribe-specific festival background, producing a full festival poster.
 
-**Step 5 — Video Generation (`moviepy`)**
+**Step 5. Video Generation (`moviepy`)**
 Combines the tribe poster and the generated audio clip into a final `.mp4` video file.
 
 ---
@@ -220,13 +220,7 @@ Check that the tribe name in your artist CSV exactly matches one of the five tri
 
 ---
 
-## 🤝 Contributing
-
-This project was built as a creative AI installation for Festival Cruilla. Contributions, improvements, and new tribe backgrounds are welcome. Open an issue or pull request to get started.
-
----
-
-## 📄 License
+## License
 
 This project builds on the following open-source libraries and models:
  
