@@ -18,11 +18,14 @@ sys.path.insert(0, str(REPO_ROOT / "face2label" / "models"))
 sys.path.insert(0, str(REPO_ROOT / "models" / "ACE-Step-1.5"))
 
 # ── Default artifact paths ─────────────────────────────────────────────────
-MODEL_PATH    = REPO_ROOT / "face2label" / "logs" / "artists_mlp.pth"
-LABELS_PATH   = REPO_ROOT / "face2label" / "logs" / "labels.json"
-METADATA_PATH = Path("/home/spG07/data/Fake_Artist.csv")
-ASSET_DIR     = REPO_ROOT / "inputs"
-OUTPUT_DIR    = REPO_ROOT / "outputs"
+MODEL_PATH       = REPO_ROOT / "face2label" / "logs" / "artists_mlp.pth"
+LABELS_PATH      = REPO_ROOT / "face2label" / "logs" / "labels.json"
+METADATA_PATH    = Path("/home/spG07/data/Fake_Artist.csv")
+ASSET_DIR        = REPO_ROOT / "inputs"
+OUTPUT_DIR       = REPO_ROOT / "outputs"
+OUTPUT_IMAGES_DIR = OUTPUT_DIR / "images"
+OUTPUT_MUSIC_DIR  = OUTPUT_DIR / "music"
+OUTPUT_VIDEO_DIR  = OUTPUT_DIR / "final_video"
 
 # ── Tribe to background image mapping ──────────────────────────────────────
 TRIBE_BACKGROUNDS: dict[str, str] = {
@@ -108,7 +111,7 @@ def step_music(
     from acestep.handler import AceStepHandler
     from acestep.inference import GenerationParams, GenerationConfig, generate_music
 
-    save_dir = str(OUTPUT_DIR / "music")
+    save_dir = str(OUTPUT_MUSIC_DIR)
     os.makedirs(save_dir, exist_ok=True)
 
     # Build personalized prompt from user inputs + artist match
@@ -207,10 +210,20 @@ def step_background(
 
     # ── 3. Remove background from user photo ──────────────────────────────
     print("[background] Removing subject background with rembg…")
+    import numpy as np
+    from PIL import ImageFilter
+
     user_img = Image.open(user_image_path)
     subject  = remove(user_img)
     if subject.mode != "RGBA":
         subject = subject.convert("RGBA")
+
+    # Avoid transparency in images
+    alpha_arr    = np.array(subject.split()[3], dtype=np.uint8)
+    alpha_binary = np.where(alpha_arr >= 100, 255, 0).astype(np.uint8)
+    alpha_edge   = Image.fromarray(alpha_binary).filter(ImageFilter.GaussianBlur(1.5))
+    r, g, b, _   = subject.split()
+    subject      = Image.merge("RGBA", (r, g, b, alpha_edge))
 
     # ── 4. Scale subject to fit above the text band ───────────────────────
     text_band_px = int(bg_h * TEXT_BAND_FRACTION)  # pixels reserved for text
@@ -238,6 +251,33 @@ def step_background(
 
 
 # ==============================================================================
+# STEP 5 — VIDEO GENERATION
+# ==============================================================================
+
+def step_video(image_path: str, audio_path: str, output_path: str) -> str | None:
+    try:
+        from moviepy import ImageClip, AudioFileClip
+    except ImportError as e:
+        print(f"[video] Missing dependency: {e}  →  pip install moviepy")
+        return None
+
+    try:
+        audio = AudioFileClip(audio_path)
+        video = ImageClip(image_path, duration=audio.duration).with_audio(audio)
+
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        video.write_videofile(output_path, fps=1, logger=None)
+        video.close()
+        audio.close()
+
+        print(f"[video] ✓ Video saved → {output_path}")
+        return output_path
+    except Exception as e:
+        print(f"[video] ✗ Error generating video: {e}")
+        return None
+
+
+# ==============================================================================
 # PIPELINE ORCHESTRATOR
 # ==============================================================================
 
@@ -250,11 +290,14 @@ def run_pipeline(
     skip_music: bool = True,
 ) -> dict:
     OUTPUT_DIR.mkdir(exist_ok=True)
+    OUTPUT_IMAGES_DIR.mkdir(exist_ok=True)
+    OUTPUT_MUSIC_DIR.mkdir(exist_ok=True)
+    OUTPUT_VIDEO_DIR.mkdir(exist_ok=True)
 
     stem = Path(image_path).stem
 
     if output_path is None:
-        output_path = str(OUTPUT_DIR / f"{stem}_styled.png")
+        output_path = str(OUTPUT_IMAGES_DIR / f"{stem}_styled.png")
 
     # ── Step 1 — face → artist ────────────────────────────────────────────
     artist_match = step_face2label(image_path)
@@ -274,12 +317,19 @@ def run_pipeline(
         music_result = step_music(artist_match, mood, instrument, era)
 
     # ── Step 4 — tribe background composite ──────────────────────────────
-    poster_output = str(OUTPUT_DIR / f"{stem}_tribe_poster.png")
+    poster_output = str(OUTPUT_IMAGES_DIR / f"{stem}_tribe_poster.png")
     tribe_poster  = step_background(
         user_image_path=working_image,
         artist_match=artist_match,
         output_path=poster_output,
     )
+
+    # ── Step 5 — video generation ─────────────────────────────────────────
+    final_video = None
+    audio_path = music_result.get("audio_path") if music_result and music_result.get("success") else None
+    if tribe_poster and audio_path:
+        video_output = str(OUTPUT_VIDEO_DIR / f"{stem}_final.mp4")
+        final_video = step_video(tribe_poster, audio_path, video_output)
 
     return {
         "success":      True,
@@ -287,6 +337,7 @@ def run_pipeline(
         "styled_image": styled_path,
         "tribe_poster": tribe_poster,
         "music":        music_result,
+        "final_video":  final_video,
     }
 
 
@@ -324,6 +375,8 @@ if __name__ == "__main__":
             print(f"Tribe poster : {result['tribe_poster']}")
         if result["music"] and result["music"].get("audio_path"):
             print(f"Music        : {result['music']['audio_path']}")
+        if result["final_video"]:
+            print(f"Final video  : {result['final_video']}")
     else:
         print(f"\nPipeline failed: {result['error']}")
         sys.exit(1)
