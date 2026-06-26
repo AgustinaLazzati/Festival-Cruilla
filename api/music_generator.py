@@ -7,7 +7,7 @@ Pipeline:
   user answers (mood / instrument / era)
   + artist-match data (name / genre / tribe / confidence)
   ──► build_ace_prompt()
-  ──► generate_personalized_music()   (calls ACE Step 1.5 HTTP API)
+  ──► generate_personalized_music()   (calls ACE Step 1.5 REST API on port 8001)
 
 Every mapping produces vocabulary that ACE Step 1.5 was trained on:
   tags block  → short comma-separated descriptors  (genre, mood, texture…)
@@ -23,7 +23,7 @@ from typing import Optional
 # 1.  VOCABULARY MAPS
 # =============================================================
 
-# 1A. MOOD 
+# 1A. MOOD
 MOOD_MAP: dict[str, dict] = {
     "happy": {
         "tags": "euphoric, upbeat, feel-good, bright, triumphant, joyful energy",
@@ -51,7 +51,7 @@ MOOD_MAP: dict[str, dict] = {
     },
 }
 
-# 1B. INSTRUMENT 
+# 1B. INSTRUMENT
 INSTRUMENT_MAP: dict[str, dict] = {
     "guitar": {
         "tags": "electric guitar lead, clean Stratocaster tone, fingerpicked arpeggios, overdriven riff",
@@ -75,7 +75,7 @@ INSTRUMENT_MAP: dict[str, dict] = {
     },
 }
 
-# 1C. ERA 
+# 1C. ERA
 ERA_MAP: dict[str, dict] = {
     "medieval": {
         "tags": "medieval era, acoustic resonance, natural reverb, troubadour folk, Gregorian chant",
@@ -100,7 +100,6 @@ ERA_MAP: dict[str, dict] = {
 }
 
 # 1D. GENRE / TRIBE
-# Describes the -sound world- without naming the matched artist.
 GENRE_MAP: dict[str, dict] = {
     # -- Rock family --
     "Alternative Rock": {
@@ -273,15 +272,13 @@ GENRE_MAP: dict[str, dict] = {
     },
 }
 
-# 1E. TRIBE (secondary genre from artist-match)
+# 1E. TRIBE
 TRIBE_MAP: dict[str, str] = {
-    # Cruilla tribes
     "Los Salvajes":   "raw guitar power, rebellious rock energy, distorted edge",
     "Los Soñadores":  "electronic dreamscape, synthesizer atmosphere, nocturnal depth",
     "Los Nómadas":    "world music rhythmic diversity, jazz harmony, organic groove",
     "Los Románticos": "melodic indie pop sensibility, heartfelt songwriting, summery warmth",
     "La Calle":       "urban street energy, hip-hop rhythmic grit, bass-heavy urban production",
-    # Generic fallbacks
     "hip_hop":        "hip-hop DNA, urban rhythmic sensibility",
     "electronic":     "electronic music production instinct, synthesizer-centric",
     "latin":          "Latin rhythmic feel, Caribbean melodic warmth",
@@ -295,8 +292,6 @@ TRIBE_MAP: dict[str, str] = {
 }
 
 # 1F. FESTIVAL QUALITY STACK
-# These tags are ALWAYS appended so the model aims for
-# professional, non-lo-fi output.
 FESTIVAL_QUALITY_TAGS = (
     "high-fidelity recording, professionally mixed and mastered, "
     "wide stereo field, punchy transients, rich harmonic overtones, "
@@ -327,29 +322,22 @@ def build_ace_prompt(
 ) -> dict[str, str]:
     """
     Returns a dict with:
-      'tags'        → short comma-separated keyword block  (ACE Step tag input)
-      'description' → rich prose sentence                  (ACE Step description input)
-      'full_prompt' → concatenated tags + description      (single-string fallback)
-
-    All keys are normalised to lowercase with underscores to match the maps.
-    Unknown values fall back to sensible defaults gracefully.
+      'tags'        → short comma-separated keyword block
+      'description' → rich prose sentence
+      'full_prompt' → concatenated tags + description
     """
-
-    # -- Resolve maps (with fallbacks) --
     m  = MOOD_MAP.get(mood,       MOOD_MAP["happy"])
     i  = INSTRUMENT_MAP.get(instrument, INSTRUMENT_MAP["guitar"])
     e  = ERA_MAP.get(era,         ERA_MAP["actual"])
     g  = GENRE_MAP.get(genre,     GENRE_MAP["unknown"])
     t  = TRIBE_MAP.get(tribe,     "")
 
-    # -- Pipeline diagnostics --
     genre_ok = genre in GENRE_MAP
     tribe_ok = tribe in TRIBE_MAP
     print(f"[prompt_builder] Genre  : '{genre}  →  {'OK' if genre_ok else 'FALLBACK: unknown'}")
     print(f"[prompt_builder] Tribe  : '{tribe}'  →  {'OK: ' + t[:60] if tribe_ok else 'NOT FOUND (no tribe descriptor added)'}")
     print(f"[prompt_builder] Mood={mood}  Instrument={instrument}  Era={era}  Confidence={artist_confidence}%")
 
-    # -- Structural / timing descriptor --
     if duration_seconds <= 15:
         structure_tag  = "short cinematic intro, compact motif"
         structure_desc = f"a focused {duration_seconds}-second motif with immediate impact"
@@ -366,8 +354,6 @@ def build_ace_prompt(
             "from intro through climax"
         )
 
-    # -- Confidence modifier --
-    # High confidence -> lean into the genre more specifically
     if artist_confidence >= 10:
         genre_weight = f"strong {g['sub_genre']} influence"
     elif artist_confidence >= 5:
@@ -375,22 +361,20 @@ def build_ace_prompt(
     else:
         genre_weight = f"subtle {genre} undertone"
 
-    # -- Assemble TAGS block --
     tags_parts = [
-        g["tags"],                  # genre first (highest weight in ACE Step)
-        m["tags"],                  # mood
-        i["tags"],                  # instrument
-        e["tags"],                  # era / production style
-        genre_weight,               # confidence-scaled genre depth
-        t,                          # tribal / secondary genre
-        m["bpm_hint"],              # tempo hint
-        m["key_hint"],              # key / mode hint
-        structure_tag,              # duration structure
-        FESTIVAL_QUALITY_TAGS,      # always: pro quality
+        g["tags"],
+        m["tags"],
+        i["tags"],
+        e["tags"],
+        genre_weight,
+        t,
+        m["bpm_hint"],
+        m["key_hint"],
+        structure_tag,
+        FESTIVAL_QUALITY_TAGS,
     ]
     tags = ", ".join(filter(None, tags_parts))
 
-    # -- Assemble DESCRIPTION block --
     tribe_clause = f", enriched with {t}" if t else ""
     description = (
         f"A {duration_seconds}-second {genre.replace('_', ' ')} melody "
@@ -403,29 +387,27 @@ def build_ace_prompt(
         f"{FESTIVAL_QUALITY_DESC}"
     )
 
-    # -- Full single-string prompt (fallback / debug) --
     full_prompt = f"[TAGS]: {tags}\n\n[DESCRIPTION]: {description}"
 
     return {
         "tags": tags,
         "description": description,
         "full_prompt": full_prompt,
-        # expose resolved hints for debugging / UI display
-        "_bpm_hint":  m["bpm_hint"],
-        "_key_hint":  m["key_hint"],
+        "_bpm_hint":   m["bpm_hint"],
+        "_key_hint":   m["key_hint"],
         "_production": e["production"],
-        "_texture":   i["texture"],
+        "_texture":    i["texture"],
     }
 
 
 # =============================================================
 # 3.  ACE STEP 1.5 API CALLER
-#     Replace ACE_STEP_API_URL with your actual endpoint.
-#     The payload structure follows the ACE Step 1.5 HTTP spec.
+#     Start the server with:  uv run acestep-api
+#     REST API runs on port 8001 (Gradio UI is on 7860 — different thing)
 # =============================================================
 
-ACE_STEP_API_URL = os.getenv("ACE_STEP_API_URL", "http://localhost:7860/generate")
-ACE_STEP_API_KEY = os.getenv("ACE_STEP_API_KEY", "")
+ACE_STEP_BASE_URL = os.getenv("ACE_STEP_API_URL", "http://localhost:8001")
+ACE_STEP_API_KEY  = os.getenv("ACE_STEP_API_KEY", "")
 
 
 def _call_ace_step(
@@ -435,54 +417,130 @@ def _call_ace_step(
     output_path: Path,
 ) -> dict:
     """
-    Calls the ACE Step 1.5 HTTP endpoint.
-    Returns {"success": True, "audio_path": str} or {"success": False, "error": str}.
+    Calls the ACE-Step 1.5 REST API via the async task workflow.
+
+    Workflow:
+      1. POST /release_task with prompt/duration
+      2. Poll /query_result until task succeeds
+      3. Download audio via /v1/audio endpoint
     """
-    payload = {
-        # ACE Step 1.5 primary inputs
-        "prompt":       tags,           # tag-style prompt
-        "description":  description,    # prose description (used by the encoder)
-        "duration":     duration,
-        # Recommended inference settings for festival-quality 20s clips
-        "steps":        100,            # more steps for better quality
-        "cfg_scale":    7.0,            # classifier-free guidance strength
-        "seed":         -1,             # -1 = random seed
-        "scheduler":    "euler",
-        "sample_rate":  44100,
-        "format":       "wav",
-    }
+    import time
 
     headers = {"Content-Type": "application/json"}
     if ACE_STEP_API_KEY:
         headers["Authorization"] = f"Bearer {ACE_STEP_API_KEY}"
 
+    # Combine tags and description into a single prompt
+    prompt = f"{tags}\n\n{description}"
+
+    payload = {
+        "prompt":    prompt,
+        "duration":  duration,
+        "audio_format": "wav",
+    }
+    if ACE_STEP_API_KEY:
+        payload["ai_token"] = ACE_STEP_API_KEY
+
     try:
-        response = requests.post(
-            ACE_STEP_API_URL,
+        # Step 1: Submit generation task
+        print(f"[ace_step] POST {ACE_STEP_BASE_URL}/release_task …")
+        resp = requests.post(
+            f"{ACE_STEP_BASE_URL}/release_task",
             json=payload,
             headers=headers,
-            timeout=120,
+            timeout=30,
         )
-        response.raise_for_status()
+        resp.raise_for_status()
+        data = resp.json()
 
-        # ACE Step returns raw audio bytes
+        if data.get("code") != 200:
+            return {"success": False, "error": f"API error: {data.get('error', 'Unknown error')}"}
+
+        task_id = data["data"]["task_id"]
+        print(f"[ace_step] Task submitted: {task_id}")
+
+        # Step 2: Poll for task completion
+        max_retries = 300  # 5 minutes with 1-second checks
+        retry_count = 0
+        audio_url = ""
+        while retry_count < max_retries:
+            time.sleep(1)
+            query_resp = requests.post(
+                f"{ACE_STEP_BASE_URL}/query_result",
+                json={"task_ids": [task_id]},
+                headers=headers,
+                timeout=30,
+            )
+            query_resp.raise_for_status()
+            query_data = query_resp.json()
+
+            if query_data.get("code") != 200:
+                return {"success": False, "error": f"Query error: {query_data.get('error', 'Unknown')}"}
+
+            # data can be a list or dict depending on API version
+            data_field = query_data.get("data", [])
+            if isinstance(data_field, list) and data_field:
+                tasks = data_field
+            elif isinstance(data_field, dict):
+                tasks = data_field.get("tasks", [])
+            else:
+                tasks = []
+
+            if tasks:
+                # Handle both list and dict responses
+                task_info = tasks[0] if isinstance(tasks, list) else tasks
+                task_status = task_info.get("status") if isinstance(task_info, dict) else task_info
+                
+                if task_status == 1:  # Success
+                    audio_url = task_info.get("media_path", "") if isinstance(task_info, dict) else ""
+                    print(f"[ace_step] Generation succeeded: {audio_url}")
+                    break
+                elif task_status == 2:  # Failed
+                    error_msg = task_info.get("error_msg", "Unknown error") if isinstance(task_info, dict) else "Unknown error"
+                    return {"success": False, "error": f"Task failed: {error_msg}"}
+                else:  # Still queued/running (status 0)
+                    if retry_count % 10 == 0:
+                        print(f"[ace_step] Task {task_id} in progress... ({retry_count}s)")
+
+            retry_count += 1
+
+        if retry_count >= max_retries:
+            return {"success": False, "error": "Task generation timeout (>5min)"}
+
+        # Step 3: Download audio file
+        if not audio_url:
+            return {"success": False, "error": "No audio URL in response"}
+
+        # If audio_url is a path, download via /v1/audio endpoint
+        if audio_url.startswith("/"):
+            download_url = f"{ACE_STEP_BASE_URL}/v1/audio?path={audio_url}"
+        else:
+            download_url = audio_url
+
+        print(f"[ace_step] Downloading from: {download_url}")
+        audio_resp = requests.get(download_url, headers=headers, timeout=60)
+        audio_resp.raise_for_status()
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(response.content)
-
+        output_path.write_bytes(audio_resp.content)
         return {"success": True, "audio_path": str(output_path)}
 
-    except requests.exceptions.Timeout:
-        return {"success": False, "error": "ACE Step API timed out (>120s)."}
     except requests.exceptions.ConnectionError:
-        return {"success": False, "error": f"Cannot reach ACE Step API at {ACE_STEP_API_URL}."}
+        return {"success": False, "error": (
+            f"Cannot reach ACE-Step at {ACE_STEP_BASE_URL}. "
+            "Start the server with:  python acestep/api_server.py"
+        )}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "ACE-Step timed out (>timeout threshold)."}
     except requests.exceptions.HTTPError as exc:
-        return {"success": False, "error": f"ACE Step API HTTP {exc.response.status_code}: {exc.response.text[:300]}"}
+        return {"success": False,
+                "error": f"HTTP {exc.response.status_code}: {exc.response.text[:300]}"}
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 
 
 # =============================================================
-# 4.  PUBLIC ENTRY POINT  (called from step_4_generate_music)
+# 4.  PUBLIC ENTRY POINT
 # =============================================================
 
 def generate_personalized_music(
@@ -490,56 +548,29 @@ def generate_personalized_music(
     genre: str,
     mood: str,
     instrument: str,
-    fuel: str,                      # maps to "era"
+    fuel: str,
     duration: int = 20,
     output_dir: str = "outputs",
     artist_confidence: int = 0,
     tribe: Optional[str] = None,
 ) -> dict:
     """
-    Main entry point.  Matches the call signature in step_4_generate_music().
-
-    Parameters
-    ----------
-    artist_name       : matched artist (used for logging, NOT in the prompt)
-    genre             : primary genre from artist-match  e.g. "reggaeton"
-    mood              : emoji answer  e.g. "happy" | "melancholic" | …
-    instrument        : emoji answer  e.g. "guitar" | "synth" | …
-    fuel              : era emoji answer  e.g. "actual" | "80s" | …
-    duration          : clip length in seconds (default 20)
-    output_dir        : folder for saving .wav files
-    artist_confidence : 0–100 from artist-match payload
-    tribe             : secondary genre/tribe from artist-match payload
-
-    Returns
-    -------
-    {
-        "success"    : bool,
-        "audio_path" : str | None,
-        "prompt"     : str,          ← shown in the UI info box
-        "tags"       : str,
-        "description": str,
-        "error"      : str | None,
-    }
+    Main entry point. Matches the call signature in step_4_generate_music().
     """
-
-    # -- Build the prompt --
     prompt_data = build_ace_prompt(
         mood=mood,
         instrument=instrument,
         era=fuel,
         genre=genre,
-        tribe=tribe or genre,        # fall back to genre if no tribe
+        tribe=tribe or genre,
         artist_confidence=artist_confidence,
         duration_seconds=duration,
     )
 
-    # -- Determine output path --
-    uid          = uuid.uuid4().hex[:8]
-    filename     = f"melody_{mood}_{genre}_{uid}.wav"
-    output_path  = Path(output_dir) / filename
+    uid         = uuid.uuid4().hex[:8]
+    filename    = f"melody_{mood}_{genre}_{uid}.wav"
+    output_path = Path(output_dir) / filename
 
-    # -- Log intent (without artist name in the prompt itself) --
     print(f"\n{'='*60}")
     print(f"[music_generator] Artist : {artist_name} ({artist_confidence}% confidence)")
     print(f"[music_generator] Genre  : {genre}")
@@ -549,7 +580,6 @@ def generate_personalized_music(
     print(f"[music_generator] TAGS:\n{prompt_data['tags']}\n")
     print(f"[music_generator] DESCRIPTION:\n{prompt_data['description']}\n")
 
-    # -- Call ACE Step 1.5 --
     result = _call_ace_step(
         tags=prompt_data["tags"],
         description=prompt_data["description"],
@@ -557,11 +587,10 @@ def generate_personalized_music(
         output_path=output_path,
     )
 
-    # -- Return unified response dict --
     return {
         "success":     result["success"],
         "audio_path":  result.get("audio_path"),
-        "prompt":      prompt_data["full_prompt"],   # shown in st.info()
+        "prompt":      prompt_data["full_prompt"],
         "tags":        prompt_data["tags"],
         "description": prompt_data["description"],
         "error":       result.get("error"),

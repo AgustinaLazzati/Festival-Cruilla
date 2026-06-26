@@ -29,7 +29,7 @@ HIDDEN_DIM = 256
 DROPOUT    = 0.5
 weight_decay = 1e-4
 IMG_AUG = True
-EVAL_ONLY = False
+EVAL_ONLY = True
 
 # ------------------------------------------------
 # Helper function to get the embeddings
@@ -136,18 +136,6 @@ def main():
             n=5  
         )
 
-        # --- Given an image, visualize top 3 predictions ---
-        # comment this code if no inference or visualization is needed
-        predict_top3(
-            image_path="/hhome/ps2g07/code/data/user2.jpg",
-            model=model,
-            extractor=extractor,
-            idx2label=idx2label,
-            label2idx=label2idx,
-            dataset=base_dataset,
-            device=device
-        )
-
         # --- Save model pth file and idx2label ---
         model_savedir = os.path.join(REPO_ROOT, "face2label/logs")
 
@@ -163,12 +151,23 @@ def main():
     predictor = ArtistPredictor(
         model_path=os.path.join(REPO_ROOT, "face2label/logs/artists_mlp.pth"),
         labels_path=os.path.join(REPO_ROOT, "face2label/logs/labels.json"),
-        metadata_path="/hhome/ps2g07/code/data/Fake_Artist.csv",
+        metadata_path="/home/spG07/data/Fake_Artist.csv",
     )
 
     results = predictor.evaluate(val_loader, ks=(1, 3, 5))
     for k, acc in results.items():
         print(f"Top-{k} accuracy: {acc:.2%}")
+
+    predict_topk(
+        image_path="/home/spG07/data/user.png",
+        model_path=os.path.join(REPO_ROOT, "face2label/logs/artists_mlp.pth"), 
+        extractor=extractor,
+        idx2label=idx2label,
+        label2idx=label2idx,
+        dataset=base_dataset,
+        device=device,
+        k=5
+    )
 
 if __name__ == "__main__":
     main()

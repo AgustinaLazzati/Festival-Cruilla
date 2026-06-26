@@ -4,9 +4,27 @@ import mediapipe as mp
 import numpy as np
 import pandas as pd
 
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.vision import FaceLandmarker, PoseLandmarker
+from mediapipe.tasks.python.vision import (
+    FaceLandmarkerOptions,
+    PoseLandmarkerOptions,
+)
+from mediapipe.tasks.python.core.base_options import BaseOptions
+
 
 # ==========================================================
-# ACCESSORY RULES
+# MODEL PATHS  — download once and point these at the files
+# ==========================================================
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+FACE_MODEL_PATH = os.path.join(_HERE, "models", "face_landmarker.task")
+POSE_MODEL_PATH = os.path.join(_HERE, "models", "pose_landmarker_full.task")
+
+
+# ==========================================================
+# ACCESSORY RULES  (unchanged)
 # ==========================================================
 
 ACCESSORY_RULES = {
@@ -73,102 +91,71 @@ ACCESSORY_RULES = {
 
 
 # ==========================================================
-# IMAGE HELPERS
+# IMAGE HELPERS  (unchanged)
 # ==========================================================
 
 def crop_transparent(img):
     if img.shape[2] != 4:
         return img
-
     alpha = img[:, :, 3]
     coords = cv2.findNonZero(alpha)
-
     if coords is None:
         return img
-
     x, y, w, h = cv2.boundingRect(coords)
     return img[y:y + h, x:x + w]
 
 
 def load_asset(path):
     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-
     if img is None:
         return None
-
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGRA)
-
     elif img.shape[2] == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
-
     return crop_transparent(img)
 
 
 def rotate_image(img, angle):
     h, w = img.shape[:2]
     center = (w // 2, h // 2)
-
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-
     rotated = cv2.warpAffine(
-        img,
-        matrix,
-        (w, h),
+        img, matrix, (w, h),
         flags=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_CONSTANT,
         borderValue=(0, 0, 0, 0),
     )
-
     return crop_transparent(rotated)
 
 
 def overlay(bg, fg, x, y, w, h):
     if w <= 0 or h <= 0:
         return bg
-
     fg = cv2.resize(fg, (w, h), interpolation=cv2.INTER_AREA)
-
     H, W = bg.shape[:2]
-
     if x >= W or y >= H or x + w <= 0 or y + h <= 0:
         return bg
-
-    x1 = max(x, 0)
-    y1 = max(y, 0)
-    x2 = min(x + w, W)
-    y2 = min(y + h, H)
-
-    fg_x1 = x1 - x
-    fg_y1 = y1 - y
-    fg_x2 = fg_x1 + (x2 - x1)
-    fg_y2 = fg_y1 + (y2 - y1)
-
-    fg_crop = fg[fg_y1:fg_y2, fg_x1:fg_x2]
-
+    x1, y1 = max(x, 0), max(y, 0)
+    x2, y2 = min(x + w, W), min(y + h, H)
+    fg_crop = fg[y1 - y:y1 - y + (y2 - y1), x1 - x:x1 - x + (x2 - x1)]
     alpha = fg_crop[:, :, 3] / 255.0
-
     for c in range(3):
         bg[y1:y2, x1:x2, c] = (
-            alpha * fg_crop[:, :, c]
-            + (1 - alpha) * bg[y1:y2, x1:x2, c]
+            alpha * fg_crop[:, :, c] + (1 - alpha) * bg[y1:y2, x1:x2, c]
         )
-
     return bg
 
 
 # ==========================================================
-# CSV + ASSET HELPERS
+# CSV + ASSET HELPERS  (unchanged)
 # ==========================================================
 
 def get_signature(artist_name, csv_path):
     df = pd.read_csv(csv_path)
-
     row = df[df["Artist"].str.lower() == artist_name.lower()]
-
     if row.empty:
         return None
-
     return row.iloc[0]["Signature_Look"]
 
 
@@ -177,7 +164,83 @@ def asset_file(signature, asset_dir):
 
 
 # ==========================================================
-# PLACEMENT
+# MODEL DOWNLOAD HELPER
+# ==========================================================
+
+def _ensure_models():
+    """Download .task model files if not already present."""
+    import urllib.request
+
+    models_dir = os.path.join(_HERE, "models")
+    os.makedirs(models_dir, exist_ok=True)
+
+    files = {
+        FACE_MODEL_PATH: (
+            "https://storage.googleapis.com/mediapipe-models/"
+            "face_landmarker/face_landmarker/float16/latest/face_landmarker.task"
+        ),
+        POSE_MODEL_PATH: (
+            "https://storage.googleapis.com/mediapipe-models/"
+            "pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task"
+        ),
+    }
+
+    for dest, url in files.items():
+        if not os.path.exists(dest):
+            print(f"[clothing] Downloading {os.path.basename(dest)}…")
+            urllib.request.urlretrieve(url, dest)
+            print(f"[clothing] Saved → {dest}")
+
+
+# ==========================================================
+# LANDMARK EXTRACTION  (new task-based API)
+# ==========================================================
+
+def _get_landmarks(rgb_image: np.ndarray):
+    """
+    Returns (face_landmarks, pose_landmarks) using the new Tasks API.
+    face_landmarks : list of landmark objects with .x .y (or None)
+    pose_landmarks : object with .landmark list (or None)  ← same shape
+                     as the old mp.solutions.pose result so placement
+                     code below works unchanged.
+    """
+    _ensure_models()
+
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+
+    # ── Face ──────────────────────────────────────────────────────────────
+    face_opts = FaceLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=FACE_MODEL_PATH),
+        num_faces=1,
+    )
+    with FaceLandmarker.create_from_options(face_opts) as detector:
+        face_result = detector.detect(mp_image)
+
+    face_landmarks = None
+    if face_result.face_landmarks:
+        face_landmarks = face_result.face_landmarks[0]   # list of NormalizedLandmark
+
+    # ── Pose ──────────────────────────────────────────────────────────────
+    pose_opts = PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=POSE_MODEL_PATH),
+    )
+    with PoseLandmarker.create_from_options(pose_opts) as detector:
+        pose_result = detector.detect(mp_image)
+
+    # Wrap in a simple namespace so placement code can still do
+    # pose_landmarks.landmark[idx].x / .y — identical to the old API.
+    pose_landmarks = None
+    if pose_result.pose_landmarks:
+        class _PoseWrap:
+            def __init__(self, lm_list):
+                self.landmark = lm_list
+        pose_landmarks = _PoseWrap(pose_result.pose_landmarks[0])
+
+    return face_landmarks, pose_landmarks
+
+
+# ==========================================================
+# PLACEMENT  (unchanged — works with both old and new landmark objects)
 # ==========================================================
 
 def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
@@ -186,13 +249,11 @@ def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
             print("[clothing] Face landmarks needed but not found.")
             return img
         lm = face
-
     elif rule["source"] == "pose":
         if pose is None:
             print("[clothing] Pose landmarks needed but not found.")
             return img
         lm = pose.landmark
-
     else:
         return img
 
@@ -213,18 +274,11 @@ def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
     if "bottom_left" in rule and "bottom_right" in rule:
         b1 = lm[rule["bottom_left"]]
         b2 = lm[rule["bottom_right"]]
-
-        bl_y = int(b1.y * H)
-        br_y = int(b2.y * H)
-
         shoulder_y = (ly + ry) / 2
-        hip_y = (bl_y + br_y) / 2
-
+        hip_y = (int(b1.y * H) + int(b2.y * H)) / 2
         torso_height = abs(hip_y - shoulder_y)
-
         h = int(torso_height * rule.get("scale_h", 1.0))
         w = int(h / aspect)
-
     else:
         anchor_dist = abs(rx - lx)
         w = int(anchor_dist * rule["scale_w"])
@@ -232,10 +286,8 @@ def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
 
     cx = (lx + rx) // 2
     cy = (ly + ry) // 2
-
     shift_x = rule.get("shift_x", 0.0)
     shift_y = rule.get("shift_y", 0.0)
-
     x = int(cx - w / 2 + w * shift_x)
     y = int(cy - h / 2 + h * shift_y)
 
@@ -243,7 +295,7 @@ def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
 
 
 # ==========================================================
-# PIPELINE FUNCTION CALLED FROM main.py
+# PIPELINE FUNCTION CALLED FROM main.py  (signature unchanged)
 # ==========================================================
 
 def apply_look(
@@ -256,13 +308,11 @@ def apply_look(
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     img = cv2.imread(user_image_path)
-
     if img is None:
         print(f"[clothing] Cannot open input image: {user_image_path}")
         return None
 
     signature = get_signature(artist_name, csv_path)
-
     if signature is None:
         print(f"[clothing] Artist not found in CSV: {artist_name}")
         return None
@@ -272,62 +322,40 @@ def apply_look(
 
     asset_path = asset_file(signature, asset_dir)
     accessory = load_asset(asset_path)
-
     if accessory is None:
         print(f"[clothing] Missing asset: {asset_path}")
         return None
 
-    print(f"[clothing] Artist: {artist_name}")
+    print(f"[clothing] Artist:         {artist_name}")
     print(f"[clothing] Signature look: {signature}")
 
     H, W = img.shape[:2]
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    mp_face = mp.solutions.face_mesh
-    mp_pose = mp.solutions.pose
+    face_landmarks, pose_landmarks = _get_landmarks(rgb)
 
-    with mp_face.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        refine_landmarks=True,
-    ) as face_mesh, mp_pose.Pose(
-        static_image_mode=True,
-    ) as pose:
-
-        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        face_result = face_mesh.process(rgb)
-        pose_result = pose.process(rgb)
-
-        face_landmarks = None
-        if face_result.multi_face_landmarks:
-            face_landmarks = face_result.multi_face_landmarks[0].landmark
-
-        pose_landmarks = pose_result.pose_landmarks
-
-        applied = False
-
-        for key, rule in ACCESSORY_RULES.items():
-            if key in signature_lower:
-                img = place_accessory_dynamically(
-                    img=img,
-                    accessory=accessory,
-                    rule=rule,
-                    face=face_landmarks,
-                    pose=pose_landmarks,
-                    W=W,
-                    H=H,
-                )
-                applied = True
-                break
-
-        if not applied:
-            print(
-                f"[clothing] Unsupported accessory type: {signature}. "
-                f"Add a matching keyword to ACCESSORY_RULES."
+    applied = False
+    for key, rule in ACCESSORY_RULES.items():
+        if key in signature_lower:
+            img = place_accessory_dynamically(
+                img=img,
+                accessory=accessory,
+                rule=rule,
+                face=face_landmarks,
+                pose=pose_landmarks,
+                W=W,
+                H=H,
             )
-            return None
+            applied = True
+            break
+
+    if not applied:
+        print(
+            f"[clothing] Unsupported accessory type: {signature}. "
+            f"Add a matching keyword to ACCESSORY_RULES."
+        )
+        return None
 
     cv2.imwrite(output_path, img)
     print(f"[clothing] Saved: {output_path}")
-
     return output_path

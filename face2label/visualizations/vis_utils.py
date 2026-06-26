@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image
 import random
 import torch
+from auraface import ArtistMLP
 
 # Get repo root 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -119,10 +120,14 @@ def visualize_predictions(model, extractor, samples, label2idx, device, n=5, sav
         plt.savefig(save_dir, dpi=300, bbox_inches="tight")
 
 # -----------------------------------------------------
-# VISUALIZE TOP 3 PREDICTED ARTISTS
+# VISUALIZE TOP K PREDICTED ARTISTS
 # -----------------------------------------------------
 
-def predict_top3(image_path, model, extractor, idx2label, label2idx, dataset, device):
+def predict_topk(image_path, model_path, extractor, idx2label, label2idx, dataset, device, k=3):
+    num_classes = len(idx2label)
+    model = ArtistMLP(num_classes=num_classes)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+    model.to(device)
     model.eval()
 
     embedding = extractor.get_embedding(image_path)
@@ -131,33 +136,56 @@ def predict_top3(image_path, model, extractor, idx2label, label2idx, dataset, de
         return
 
     with torch.no_grad():
-        tensor = torch.tensor(embedding, dtype=torch.float32).unsqueeze(0).to(device)
+        tensor = (
+            torch.tensor(embedding, dtype=torch.float32)
+            .unsqueeze(0)
+            .to(device)
+        )
         probs = torch.softmax(model(tensor), dim=1).squeeze().cpu()
 
-    top3_probs, top3_idxs = torch.topk(probs, 3)
-    top3_artists = [idx2label[i.item()] for i in top3_idxs]
-    top3_probs = top3_probs.numpy()
+    # Top-k predictions
+    topk_probs, topk_idxs = torch.topk(probs, k)
 
-    # Get one representative image per top3 artist from the dataset
-    artist2paths = {artist: paths for paths, artist in dataset.samples}
+    topk_artists = [idx2label[idx.item()] for idx in topk_idxs]
+    topk_probs = topk_probs.numpy()
 
-    fig, axes = plt.subplots(1, 4, figsize=(16, 4))
+    # Build artist
+    artist2paths = {}
+    for image_paths, artist in dataset.samples:
+        for path in image_paths:
+            artist2paths.setdefault(artist, []).append(path)
+
+    # Input image + k predictions
+    fig, axes = plt.subplots(1, k + 1, figsize=(4 * (k + 1), 4))
 
     # Input image
     axes[0].imshow(Image.open(image_path).convert("RGB"))
     axes[0].set_title("Input", fontsize=11, fontweight="bold")
     axes[0].axis("off")
 
-    # Top 3 artist images
-    for i, (artist, prob) in enumerate(zip(top3_artists, top3_probs)):
+    # Top-k artist images
+    for i, (artist, prob) in enumerate(zip(topk_artists, topk_probs)):
         rep_image = Image.open(artist2paths[artist][0]).convert("RGB")
+
         axes[i + 1].imshow(rep_image)
-        axes[i + 1].set_title(f"{artist}\n{prob:.1%}", fontsize=10,
-                               color="green" if i == 0 else "black")
+        axes[i + 1].set_title(
+            f"{artist}\n{prob:.1%}",
+            fontsize=10,
+            color="green" if i == 0 else "black",
+        )
         axes[i + 1].axis("off")
 
-    plt.suptitle("Top 3 Most Similar Artists", fontweight="bold")
+    plt.suptitle(
+        f"Top {k} Most Similar Artists",
+        fontsize=14,
+        fontweight="bold",
+    )
 
     output_dir = REPO_ROOT / "outputs"
-    save_dir = output_dir / "top3_predictions.png"
-    plt.savefig(save_dir, dpi=300, bbox_inches="tight")
+    output_dir.mkdir(exist_ok=True)
+
+    save_path = output_dir / f"top{k}_predictions.png"
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.close()
+
+    return topk_artists, topk_probs

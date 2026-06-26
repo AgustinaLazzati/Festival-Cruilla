@@ -70,7 +70,6 @@ def step_face2label(image_path: str) -> dict | None:
           f"tribe: {result.get('tribe', 'unknown')}")
     return result
 
-
 # ==============================================================================
 # STEP 2 — CLOTHING / ACCESSORY OVERLAY
 # ==============================================================================
@@ -78,22 +77,17 @@ def step_face2label(image_path: str) -> dict | None:
 def step_clothing(user_image_path: str, artist_match: dict, output_path: str) -> str | None:
     """
     Apply the matched artist's signature look to the user image.
-
-    TODO: import and call apply_look() from clothing.Clothing once that module
-          exposes a clean function. Suggested signature:
-
-            from clothing.Clothing import apply_look
-            return apply_look(
-                user_image_path=user_image_path,
-                artist_name=artist_match["name"],
-                output_path=output_path,
-                csv_path=str(METADATA_PATH),
-                asset_dir=str(ASSET_DIR),
-            )
+    Returns the output path on success, or None if the step fails.
     """
-    print(f"[clothing] TODO — overlay for '{artist_match['name']}' → {output_path}")
-    return None
+    from clothing.Clothing import apply_look
 
+    return apply_look(
+        user_image_path=user_image_path,
+        artist_name=artist_match["name"],
+        output_path=output_path,
+        csv_path=str(METADATA_PATH),
+        asset_dir=str(ASSET_DIR),
+    )
 
 # ==============================================================================
 # STEP 3 — MUSIC GENERATION
