@@ -215,3 +215,15 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+models/auraface/1k3d68.onnx
+models/instantid/ControlNetModel/diffusion_pytorch_model.safetensors
+models/instantid/ip-adapter.bin
+models/instantid/.gitattributes
+models/auraface/scrfd_10g_bnkps.onnx
+models/auraface/LICENSE.md
+models/auraface/glintr100.onnx
+models/auraface/genderage.onnx
+models/auraface/2d106det.onnx
+models/auraface/.gitattributes
+models/auraface/README.md
+models/instantid/README.md
