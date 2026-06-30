@@ -1,0 +1,11 @@
+numpy
+Pillow
+rembg
+moviepy
+pandas
+huggingface_hub
+insightface
+wandb
+opencv-python
+mediapipe
+requests
