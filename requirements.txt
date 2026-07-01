@@ -9,3 +9,5 @@ wandb
 opencv-python
 mediapipe
 requests
+loguru
+gradio==5.33.1
