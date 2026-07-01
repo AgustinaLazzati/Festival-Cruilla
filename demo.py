@@ -6,8 +6,10 @@ from loguru import logger
 from PIL import Image
 
 import config
+from main import run_pipeline
 
-T_USER_VECT = tuple[str,str,str,str]
+T_USER_VECT = tuple[str, str, str, str]  # mood, instrument, era, locale
+
 
 class State(Enum):
     home = auto()
@@ -24,7 +26,7 @@ user_vector: T_USER_VECT | None = None
 root_path = Path(__file__).parent
 
 # Assets paths
-camera_button_path = str(root_path / "res/camera.png").replace('\\', '/')
+camera_button_path = str(root_path / "res/camera.png").replace("\\", "/")
 
 # Page CSS
 main_css = f"""
@@ -229,9 +231,9 @@ def parse_qr(gr_text_qr_code: str) -> T_USER_VECT:
         "2": "es",
         "3": "en",
     }
-    
+
     mood, instrument, era, locale = gr_text_qr_code.split(",")
-    
+
     mood = mood_dict[mood]
     instrument = instrument_dict[instrument]
     era = era_dict[era]
@@ -251,7 +253,7 @@ def set_user_image(image: Image.Image | None):
     user_image = image
 
 
-def set_user_vector(vector: tuple[str,str,str,str] | None):
+def set_user_vector(vector: tuple[str, str, str, str] | None):
     global user_vector
     logger.debug(f"Set user vector: {vector}")
     user_vector = vector
@@ -280,12 +282,30 @@ def on_image_photo(gr_image_photo):
 
 
 def generate():
-    import time
-    time.sleep(3)
-    set_state(State.results)
+    try:
+        mood, instrument, era, locale = user_vector
+        img_path = root_path / "user_image.png"
+        out_path = root_path / "result_image.png"
+        user_image.save(img_path)
+        logger.info("Running pipeline")
+        run_pipeline(
+            image_path=img_path,
+            output_path=out_path,
+            mood=mood,
+            instrument=instrument,
+            era=era,
+            language=locale,
+            skip_music=False,
+        )
+        # TODO: set results image and audio
+        set_state(State.results)
+    except Exception as e:
+        logger.exception("Exception raised in generation")
+        gr.Warning(f"Error in generation: {e}")
+        reset()
 
 
-def on_button_restart():
+def reset():
     logger.info("Resetting state")
     set_user_image(None)
     set_user_vector(None)
@@ -312,13 +332,15 @@ def on_timer_update_state():
 
 with gr.Blocks(js=main_js, css=main_css) as demo:
     gr_timer_update_state = gr.Timer(config.ui_update_state_interval)
-    
+
     with gr.Column(visible=state is State.home, elem_id="column_home") as gr_col_home:
         gr.HTML(html_home)
         gr_text_qr_code = gr.Textbox(elem_id="qr_code_text")
         gr_button_qr_input = gr.Button(visible=False, elem_id="qr_input_button")
-    
-    with gr.Column(visible=state is State.take_photo, elem_id="take_photo_column") as gr_col_take_photo:
+
+    with gr.Column(
+        visible=state is State.take_photo, elem_id="take_photo_column"
+    ) as gr_col_take_photo:
         gr.HTML(html_count_down, elem_id="countdown_wrap")
         gr_image_photo = gr.Image(
             show_download_button=False,
@@ -331,11 +353,8 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
             type="pil",
             webcam_options=gr.WebcamOptions(mirror=False),
         )
-        gr_button_take_photo = gr.Button(
-            "",
-            elem_id="camera_button"
-        )
-    
+        gr_button_take_photo = gr.Button("", elem_id="camera_button")
+
     with gr.Column(visible=state is State.generating) as gr_col_generating:
         gr_html_generating = gr.HTML(html_generating)
 
@@ -346,7 +365,7 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
             show_share_button=False,
             show_fullscreen_button=False,
             show_label=False,
-            interactive=False
+            interactive=False,
         )
         gr_button_result_restart = gr.Button("Restart")
 
@@ -367,13 +386,13 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
         show_progress=False,
     )
     gr_button_result_restart.click(
-        on_button_restart,
+        reset,
         show_progress=False,
     )
     gr_timer_update_state.tick(
         on_timer_update_state,
         None,
-        [gr_col_home, gr_col_take_photo, gr_col_generating, gr_col_result]
+        [gr_col_home, gr_col_take_photo, gr_col_generating, gr_col_result],
     )
 
 
