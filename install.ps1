@@ -10,11 +10,11 @@ $venv = Join-Path $root ".venv"
 
 # Pick a Python launcher
 $py = (Get-Command py -ErrorAction SilentlyContinue)
-if ($py) { $python = "py" } else { $python = "python" }
+if ($py) { $python = "py"; $pythonArgs = @("-3.10") } else { $python = "python"; $pythonArgs = @() }
 
 if (-not (Test-Path $venv)) {
     Write-Host "Creating venv at $venv"
-    & $python -m venv $venv
+    & $python @pythonArgs -m venv $venv
 } else {
     Write-Host "venv already exists at $venv"
 }
