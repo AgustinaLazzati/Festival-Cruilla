@@ -28,41 +28,41 @@ OUTPUT_IMAGES_DIR = OUTPUT_DIR / "images"
 OUTPUT_MUSIC_DIR  = OUTPUT_DIR / "music"
 OUTPUT_VIDEO_DIR  = OUTPUT_DIR / "final_video"
 
-# ── Tribe to background image mapping (Localized) ──────────────────────────
-# Assumes backgrounds are organized into language subfolders inside inputs/
+# ── Canonical tribes: urban · indie · rock · pop · tecno ───────────────────
+# Background files per language live at inputs/{lang}/bg_{tribe}.png
+# Note: the file on disk is bg_rockstar.png but the canonical key is "rock".
 TRIBE_BACKGROUNDS: dict[str, dict[str, str]] = {
-    "ca": {
-        "urban":       str(ASSET_DIR / "ca" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "ca" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "ca" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "ca" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "ca" / "bg_tecno.png"),
-    },
-    "es": {
-        "la calle":       str(ASSET_DIR / "es" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "es" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "es" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "es" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "es" / "bg_tecno.png"),
-    },
-    "en": {
-        "la calle":       str(ASSET_DIR / "en" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "en" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "en" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "en" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "en" / "bg_tecno.png"),
+    lang: {
+        "urban": str(ASSET_DIR / lang / "bg_urban.png"),
+        "indie": str(ASSET_DIR / lang / "bg_indie.png"),
+        "rock":  str(ASSET_DIR / lang / "bg_rockstar.png"),
+        "pop":   str(ASSET_DIR / lang / "bg_pop.png"),
+        "tecno": str(ASSET_DIR / lang / "bg_tecno.png"),
     }
+    for lang in ("ca", "es", "en")
 }
 
-TEXT_BAND_FRACTION = 0.22     
-SUBJECT_HEIGHT_FRACTION = 0.72 
+# ── Aliases: any raw tribe value → canonical key ────────────────────────────
+# Covers old Spanish names, CSV variants, and any legacy strings.
+_TRIBE_ALIASES: dict[str, str] = {
+    "rockstar":       "rock",
+    "la calle":       "urban",
+    "los salvajes":   "rock",
+    "los romanticos": "pop",
+    "los nomadas":    "indie",
+    "los sonadores":  "indie",
+}
+
+TEXT_BAND_FRACTION = 0.22
+SUBJECT_HEIGHT_FRACTION = 0.72
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────
 
 def _normalise_tribe(raw: str) -> str:
     nfkd = unicodedata.normalize("NFKD", raw.strip())
-    return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
+    key  = "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
+    return _TRIBE_ALIASES.get(key, key)
 
 
 # ==============================================================================
