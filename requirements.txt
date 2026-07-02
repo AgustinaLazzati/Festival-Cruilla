@@ -14,3 +14,9 @@ gradio==5.33.1
 paramiko==3.5.0
 scp==0.15.0
 python-dotenv==1.0.1
+soundfile
+transformers>=4.51.0,<4.58.0
+einops
+vector-quantize-pytorch==1.27.20
+diffusers==0.37.1
+accelerate==1.12.0

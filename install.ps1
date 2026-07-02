@@ -34,9 +34,12 @@ Write-Host "Installing requirements"
 $modelsDir = Join-Path $root "models"
 $aceDir    = Join-Path $modelsDir "ACE-Step-1.5"
 
-if (-not (Test-Path $aceDir)) {
+$aceDirHasContent = (Test-Path $aceDir) -and ((Get-ChildItem -Force $aceDir | Measure-Object).Count -gt 0)
+
+if (-not $aceDirHasContent) {
     Write-Host "Cloning ACE-Step-1.5 into $modelsDir"
     New-Item -ItemType Directory -Force -Path $modelsDir | Out-Null
+    New-Item -ItemType Directory -Force -Path $aceDir | Out-Null
     & git clone https://github.com/ace-step/ACE-Step-1.5.git $aceDir
 } else {
     Write-Host "ACE-Step-1.5 already exists at $aceDir"
