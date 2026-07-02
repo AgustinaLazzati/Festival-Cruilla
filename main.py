@@ -42,17 +42,6 @@ TRIBE_BACKGROUNDS: dict[str, dict[str, str]] = {
     for lang in ("ca", "es", "en")
 }
 
-# ── Aliases: any raw tribe value → canonical key ────────────────────────────
-# Covers old Spanish names, CSV variants, and any legacy strings.
-_TRIBE_ALIASES: dict[str, str] = {
-    "rockstar":       "rock",
-    "la calle":       "urban",
-    "los salvajes":   "rock",
-    "los romanticos": "pop",
-    "los nomadas":    "indie",
-    "los sonadores":  "indie",
-}
-
 TEXT_BAND_FRACTION = 0.22
 SUBJECT_HEIGHT_FRACTION = 0.72
 
@@ -61,8 +50,7 @@ SUBJECT_HEIGHT_FRACTION = 0.72
 
 def _normalise_tribe(raw: str) -> str:
     nfkd = unicodedata.normalize("NFKD", raw.strip())
-    key  = "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
-    return _TRIBE_ALIASES.get(key, key)
+    return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
 
 # ==============================================================================
@@ -197,21 +185,9 @@ def step_background(
     lang_backgrounds = TRIBE_BACKGROUNDS.get(language, TRIBE_BACKGROUNDS["ca"])
     bg_path = lang_backgrounds.get(tribe_key)
 
-    if bg_path is None:
-        # Partial-match fallback
-        for key, path in lang_backgrounds.items():
-            if key in tribe_key or tribe_key in key:
-                bg_path = path
-                print(f"[background] Partial match: '{raw_tribe}' → '{key}' in lang '{language}'")
-                break
-
     if bg_path is None or not Path(bg_path).exists():
-        print(
-            f"[background] ✗ No background found for tribe '{raw_tribe}' in lang '{language}'.\n"
-            f"             Normalised key: '{tribe_key}'\n"
-            f"             Known keys: {list(lang_backgrounds.keys())}\n"
-            f"             Expected file: {bg_path}"
-        )
+        known = list(lang_backgrounds.keys())
+        print(f"[background] ✗ Unknown tribe '{raw_tribe}' (key='{tribe_key}'). Known: {known}")
         return None
 
     print(f"[background] '{raw_tribe}' ({language}) →  {bg_path}")
