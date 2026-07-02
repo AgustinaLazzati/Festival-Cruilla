@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import sys
@@ -10,7 +11,7 @@ from auraface import AuraFaceExtractor, ArtistMLP
 
 
 class ArtistPredictor:
-    def __init__(self, model_path, labels_path, metadata_path):
+    def __init__(self, model_path, labels_path, metadata_path, dataset_dir=None):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Load label mapping
@@ -32,6 +33,24 @@ class ArtistPredictor:
             if "Tribe" in df.columns
         }
 
+        # Build artist → representative image path map from dataset folder structure.
+        # Folders are numbered 1-N matching CSV row order; folder 1 may be missing.
+        self.image_map: dict[str, str] = {}
+        if dataset_dir:
+            dataset_csv = os.path.join(dataset_dir, "Fake_Artist.csv")
+            if os.path.exists(dataset_csv):
+                with open(dataset_csv, newline="") as f:
+                    for i, row in enumerate(csv.DictReader(f)):
+                        folder = os.path.join(dataset_dir, str(i + 1))
+                        if not os.path.isdir(folder):
+                            continue
+                        imgs = sorted(
+                            fn for fn in os.listdir(folder)
+                            if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+                        )
+                        if imgs:
+                            self.image_map[row["Artist"]] = os.path.join(folder, imgs[0])
+
         # Load model
         self.model = ArtistMLP(num_classes=len(self.idx2label))
         self.model.load_state_dict(torch.load(model_path, map_location=self.device))
@@ -42,8 +61,19 @@ class ArtistPredictor:
         self.extractor = AuraFaceExtractor()
 
     def predict(self, image_path):
-        embedding = self.extractor.get_embedding(image_path)
+        top3 = self.predict_topk(image_path, k=1)
+        if top3 is None:
+            return None
+        best = top3[0]
+        return {
+            "name":       best["name"],
+            "confidence": best["confidence"],
+            "genre":      self.genre_map.get(best["name"], "Unknown"),
+            "tribe":      self.tribe_map.get(best["name"], "Unknown"),
+        }
 
+    def predict_topk(self, image_path, k=3):
+        embedding = self.extractor.get_embedding(image_path)
         if embedding is None:
             return None
 
@@ -51,19 +81,19 @@ class ArtistPredictor:
 
         with torch.no_grad():
             logits = self.model(x)
-            probs = torch.softmax(logits, dim=1)
+            probs   = torch.softmax(logits, dim=1)
 
-        conf, idx = torch.max(probs, dim=1)
-        idx = idx.item()
+        topk_probs, topk_idxs = torch.topk(probs, k=k, dim=1)
 
-        artist_name = self.idx2label[idx]
-
-        return {
-            "name": artist_name,
-            "confidence": int(conf.item() * 100),
-            "genre": self.genre_map.get(artist_name, "Unknown"),
-            "tribe": self.tribe_map.get(artist_name, "Unknown"),
-        }
+        results = []
+        for prob, idx in zip(topk_probs[0], topk_idxs[0]):
+            name = self.idx2label[idx.item()]
+            results.append({
+                "name":       name,
+                "confidence": int(prob.item() * 100),
+                "image":      self.image_map.get(name, ""),
+            })
+        return results
 
     def evaluate(self, val_loader, ks=(1, 3, 5)):
         """

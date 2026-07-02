@@ -295,8 +295,41 @@ def place_accessory_dynamically(img, accessory, rule, face, pose, W, H):
 
 
 # ==========================================================
-# PIPELINE FUNCTION CALLED FROM main.py  (signature unchanged)
+# PIPELINE FUNCTION CALLED FROM main.py 
 # ==========================================================
+
+def _save_landmarks(img: np.ndarray, face, pose, path: str) -> None:
+    vis = img.copy()
+    H, W = vis.shape[:2]
+    GREEN = (0, 255, 0)
+
+    if face is not None:
+        # Draw face mesh tessellation (connections between landmarks)
+        for start_idx, end_idx in mp.solutions.face_mesh.FACEMESH_TESSELATION:
+            x1 = int(face[start_idx].x * W); y1 = int(face[start_idx].y * H)
+            x2 = int(face[end_idx].x * W);   y2 = int(face[end_idx].y * H)
+            cv2.line(vis, (x1, y1), (x2, y2), GREEN, 1)
+        # Draw contours on top slightly brighter
+        for start_idx, end_idx in mp.solutions.face_mesh.FACEMESH_CONTOURS:
+            x1 = int(face[start_idx].x * W); y1 = int(face[start_idx].y * H)
+            x2 = int(face[end_idx].x * W);   y2 = int(face[end_idx].y * H)
+            cv2.line(vis, (x1, y1), (x2, y2), GREEN, 2)
+
+    if pose is not None:
+        # Draw skeleton connections
+        for start_idx, end_idx in mp.solutions.pose.POSE_CONNECTIONS:
+            x1 = int(pose.landmark[start_idx].x * W); y1 = int(pose.landmark[start_idx].y * H)
+            x2 = int(pose.landmark[end_idx].x * W);   y2 = int(pose.landmark[end_idx].y * H)
+            cv2.line(vis, (x1, y1), (x2, y2), GREEN, 2)
+        # Draw joint dots on top
+        for lm in pose.landmark:
+            x, y = int(lm.x * W), int(lm.y * H)
+            cv2.circle(vis, (x, y), 5, GREEN, -1)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    cv2.imwrite(path, vis)
+    print(f"[clothing] Landmarks saved → {path}")
+
 
 def apply_look(
     user_image_path: str,
@@ -304,6 +337,7 @@ def apply_look(
     output_path: str,
     csv_path: str,
     asset_dir: str,
+    landmarks_path: str | None = None,
 ) -> str | None:
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -333,6 +367,9 @@ def apply_look(
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     face_landmarks, pose_landmarks = _get_landmarks(rgb)
+
+    if landmarks_path:
+        _save_landmarks(img, face_landmarks, pose_landmarks, landmarks_path)
 
     applied = False
     for key, rule in ACCESSORY_RULES.items():
