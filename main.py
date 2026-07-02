@@ -276,7 +276,13 @@ def step_video(image_path: str, audio_path: str, output_path: str) -> str | None
         video = ImageClip(image_path, duration=audio.duration).with_audio(audio)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        video.write_videofile(output_path, fps=1, logger=None)
+        video.write_videofile(
+            output_path,
+            fps=1,
+            codec="libx264",
+            audio_codec="aac",
+            logger=None,
+        )
         video.close()
         audio.close()
 
