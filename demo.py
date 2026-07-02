@@ -288,7 +288,7 @@ def generate():
         out_path = root_path / "result_image.png"
         user_image.save(img_path)
         logger.info("Running pipeline")
-        run_pipeline(
+        result = run_pipeline(
             image_path=img_path,
             output_path=out_path,
             mood=mood,
@@ -297,6 +297,7 @@ def generate():
             language=locale,
             skip_music=False,
         )
+        logger.success(f"Pipeline ran successfully: {result}")
         # TODO: set results image and audio
         set_state(State.results)
     except Exception as e:
