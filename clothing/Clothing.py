@@ -1,4 +1,6 @@
 import os
+import random
+import unicodedata
 import cv2
 import mediapipe as mp
 import numpy as np
@@ -24,7 +26,7 @@ POSE_MODEL_PATH = os.path.join(_HERE, "models", "pose_landmarker_full.task")
 
 
 # ==========================================================
-# ACCESSORY RULES  (unchanged)
+# ACCESSORY RULES  
 # ==========================================================
 
 ACCESSORY_RULES = {
@@ -91,7 +93,7 @@ ACCESSORY_RULES = {
 
 
 # ==========================================================
-# IMAGE HELPERS  (unchanged)
+# IMAGE HELPERS  
 # ==========================================================
 
 def crop_transparent(img):
@@ -148,7 +150,7 @@ def overlay(bg, fg, x, y, w, h):
 
 
 # ==========================================================
-# CSV + ASSET HELPERS  (unchanged)
+# CSV + ASSET HELPERS  
 # ==========================================================
 
 def get_signature(artist_name, csv_path):
@@ -161,6 +163,119 @@ def get_signature(artist_name, csv_path):
 
 def asset_file(signature, asset_dir):
     return os.path.join(asset_dir, signature + ".png")
+
+
+# ==========================================================
+# RANDOM ACCESSORY SELECTION
+# ==========================================================
+
+# Folder name -> placement rule from ACCESSORY_RULES.
+# The PNG filename itself no longer needs to contain words such as
+# "glasses", "hat" or "necklace" because its folder defines the type.
+ACCESSORY_CATEGORIES = {
+    "glasses": "glasses",
+    "hats": "hat",
+    "necklaces": "necklace",
+}
+
+# The project currently uses "rock" as the canonical tribe key, while the
+# accessory directory in the repository is named "rockstars". Both are accepted.
+TRIBE_FOLDER_ALIASES = {
+    "indie": "indie",
+    "pop": "pop",
+    "rock": "rockstars",
+    "rockstar": "rockstars",
+    "rockstars": "rockstars",
+    "tecno": "tecno",
+    "techno": "tecno",
+    "urban": "urban",
+}
+
+# Apply lower accessories first and face accessories last, so glasses are not
+# accidentally hidden by another transparent PNG. Selection is still random.
+ACCESSORY_OVERLAY_ORDER = {
+    "necklaces": 0,
+    "hats": 1,
+    "glasses": 2,
+}
+
+def _normalise_key(value: str) -> str:
+    nfkd = unicodedata.normalize("NFKD", str(value).strip())
+    return "".join(
+        char for char in nfkd if not unicodedata.combining(char)
+    ).lower()
+
+
+def _find_accessories_root(asset_dir: str) -> str | None:
+    # The screenshot/project folder uses the misspelling "accesories".
+    # Supporting both spellings avoids breaking if it is renamed later.
+    for folder_name in ("accesories", "accessories"):
+        candidate = os.path.join(asset_dir, folder_name)
+        if os.path.isdir(candidate):
+            return candidate
+    return None
+
+
+def _png_files(folder: str) -> list[str]:
+    return sorted(
+        os.path.join(folder, filename)
+        for filename in os.listdir(folder)
+        if filename.lower().endswith(".png")
+        and os.path.isfile(os.path.join(folder, filename))
+    )
+
+
+def select_random_accessories(tribe: str, asset_dir: str) -> list[tuple[str, str, str]]:
+    """
+    Select two different accessory categories for a tribe, then one random PNG
+    from each selected category.
+
+    Returns a list of tuples:
+        (category_folder, placement_rule_key, png_path)
+    """
+    accessories_root = _find_accessories_root(asset_dir)
+    if accessories_root is None:
+        print(
+            f"[clothing] Missing accessories directory inside: {asset_dir}. "
+            "Expected 'accesories' or 'accessories'."
+        )
+        return []
+
+    tribe_key = _normalise_key(tribe)
+    tribe_folder_name = TRIBE_FOLDER_ALIASES.get(tribe_key, tribe_key)
+    tribe_dir = os.path.join(accessories_root, tribe_folder_name)
+
+    if not os.path.isdir(tribe_dir):
+        print(f"[clothing] Missing tribe accessory folder: {tribe_dir}")
+        return []
+
+    available = []
+    for category_folder, rule_key in ACCESSORY_CATEGORIES.items():
+        category_dir = os.path.join(tribe_dir, category_folder)
+        if not os.path.isdir(category_dir):
+            continue
+
+        pngs = _png_files(category_dir)
+        if pngs:
+            available.append((category_folder, rule_key, pngs))
+
+    if len(available) < 2:
+        found = [category for category, _, _ in available]
+        print(
+            f"[clothing] Tribe '{tribe}' needs at least two populated accessory "
+            f"folders. Found: {found}"
+        )
+        return []
+
+    chosen_categories = random.sample(available, k=2)
+    selected = [
+        (category, rule_key, random.choice(pngs))
+        for category, rule_key, pngs in chosen_categories
+    ]
+
+    # Selection is random; only the compositing order is deterministic.
+    selected.sort(key=lambda item: ACCESSORY_OVERLAY_ORDER[item[0]])
+    return selected
 
 
 # ==========================================================
@@ -333,66 +448,70 @@ def _save_landmarks(img: np.ndarray, face, pose, path: str) -> None:
 
 def apply_look(
     user_image_path: str,
-    artist_name: str,
+    tribe: str,
     output_path: str,
-    csv_path: str,
     asset_dir: str,
     landmarks_path: str | None = None,
 ) -> str | None:
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    """Apply two random, tribe-specific accessories to the same portrait."""
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     img = cv2.imread(user_image_path)
     if img is None:
         print(f"[clothing] Cannot open input image: {user_image_path}")
         return None
 
-    signature = get_signature(artist_name, csv_path)
-    if signature is None:
-        print(f"[clothing] Artist not found in CSV: {artist_name}")
+    selected = select_random_accessories(tribe=tribe, asset_dir=asset_dir)
+    if len(selected) != 2:
         return None
 
-    signature = str(signature).strip()
-    signature_lower = signature.lower()
-
-    asset_path = asset_file(signature, asset_dir)
-    accessory = load_asset(asset_path)
-    if accessory is None:
-        print(f"[clothing] Missing asset: {asset_path}")
-        return None
-
-    print(f"[clothing] Artist:         {artist_name}")
-    print(f"[clothing] Signature look: {signature}")
+    # Load both PNGs before changing the portrait. This prevents saving a
+    # half-styled result if one selected file is invalid or corrupted.
+    loaded_accessories = []
+    for category, rule_key, asset_path in selected:
+        accessory = load_asset(asset_path)
+        if accessory is None:
+            print(f"[clothing] Cannot load accessory: {asset_path}")
+            return None
+        loaded_accessories.append((category, rule_key, asset_path, accessory))
 
     H, W = img.shape[:2]
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+    # Detect landmarks only once and reuse them for both accessories.
     face_landmarks, pose_landmarks = _get_landmarks(rgb)
 
     if landmarks_path:
         _save_landmarks(img, face_landmarks, pose_landmarks, landmarks_path)
 
-    applied = False
-    for key, rule in ACCESSORY_RULES.items():
-        if key in signature_lower:
-            img = place_accessory_dynamically(
-                img=img,
-                accessory=accessory,
-                rule=rule,
-                face=face_landmarks,
-                pose=pose_landmarks,
-                W=W,
-                H=H,
-            )
-            applied = True
-            break
+    # Both chosen accessories must have the landmarks required by their rule.
+    for category, rule_key, asset_path, accessory in loaded_accessories:
+        rule = ACCESSORY_RULES[rule_key]
+        if rule["source"] == "face" and face_landmarks is None:
+            print(f"[clothing] Face landmarks required for '{category}' but not found.")
+            return None
+        if rule["source"] == "pose" and pose_landmarks is None:
+            print(f"[clothing] Pose landmarks required for '{category}' but not found.")
+            return None
 
-    if not applied:
-        print(
-            f"[clothing] Unsupported accessory type: {signature}. "
-            f"Add a matching keyword to ACCESSORY_RULES."
+    print(f"[clothing] Tribe: {tribe}")
+    for category, rule_key, asset_path, accessory in loaded_accessories:
+        print(f"[clothing] Selected {category}: {asset_path}")
+        img = place_accessory_dynamically(
+            img=img,
+            accessory=accessory,
+            rule=ACCESSORY_RULES[rule_key],
+            face=face_landmarks,
+            pose=pose_landmarks,
+            W=W,
+            H=H,
         )
+
+    if not cv2.imwrite(output_path, img):
+        print(f"[clothing] Could not save output image: {output_path}")
         return None
 
-    cv2.imwrite(output_path, img)
-    print(f"[clothing] Saved: {output_path}")
+    print(f"[clothing] Saved with two accessories: {output_path}")
     return output_path
