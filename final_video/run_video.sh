@@ -15,4 +15,4 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate dl
 
-python3 video.py
+python3 newvideo.py
