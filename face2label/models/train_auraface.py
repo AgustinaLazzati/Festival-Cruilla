@@ -72,11 +72,17 @@ def main():
         augmentation = None
 
     # --- Load dataset ---
-    base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, transform=augmentation)
+    CANONICAL_CSV = "/home/spG07/data/Fake_Artist.csv"
+    base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, csv_path=CANONICAL_CSV, transform=augmentation)
 
-    # Build label: index mapping from artist names
+    # Build label: index mapping from artist names — preserve CSV row order
     artist_names = [name for _, name in base_dataset.samples]
-    unique_artists = sorted(set(artist_names))
+    seen: set[str] = set()
+    unique_artists: list[str] = []
+    for name in artist_names:
+        if name not in seen:
+            seen.add(name)
+            unique_artists.append(name)
     label2idx = {name: i for i, name in enumerate(unique_artists)}
     idx2label = {v: k for k, v in label2idx.items()}
 

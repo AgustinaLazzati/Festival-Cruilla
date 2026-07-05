@@ -33,23 +33,23 @@ class ArtistPredictor:
             if "Tribe" in df.columns
         }
 
-        # Build artist → representative image path map from dataset folder structure.
-        # Folders are numbered 1-N matching CSV row order; folder 1 may be missing.
+        # Build artist → representative image path map.
+        # Uses metadata_path (new CSV, same row order as training) so that
+        # artist names match the updated labels.json.
+        # Folders are numbered 1-N by CSV row; folder 1 is typically missing.
         self.image_map: dict[str, str] = {}
-        if dataset_dir:
-            dataset_csv = os.path.join(dataset_dir, "Fake_Artist.csv")
-            if os.path.exists(dataset_csv):
-                with open(dataset_csv, newline="") as f:
-                    for i, row in enumerate(csv.DictReader(f)):
-                        folder = os.path.join(dataset_dir, str(i + 1))
-                        if not os.path.isdir(folder):
-                            continue
-                        imgs = sorted(
-                            fn for fn in os.listdir(folder)
-                            if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
-                        )
-                        if imgs:
-                            self.image_map[row["Artist"]] = os.path.join(folder, imgs[0])
+        if dataset_dir and os.path.exists(metadata_path):
+            with open(metadata_path, newline="", encoding="utf-8") as f:
+                for i, row in enumerate(csv.DictReader(f)):
+                    folder = os.path.join(dataset_dir, str(i + 2))
+                    if not os.path.isdir(folder):
+                        continue
+                    imgs = sorted(
+                        fn for fn in os.listdir(folder)
+                        if fn.lower().endswith((".jpg", ".jpeg", ".png", ".webp"))
+                    )
+                    if imgs:
+                        self.image_map[row["Artist"]] = os.path.join(folder, imgs[0])
 
         # Load model
         self.model = ArtistMLP(num_classes=len(self.idx2label))
