@@ -24,6 +24,9 @@ CONFIG = {
     ],
     "output_path": "/home/spG07/code/Festival-Cruilla/final_video/resultado_NV5.mp4",
 
+    # Idioma de los textos en pantalla: "ca" | "es" | "en"
+    "language": "ca",
+
     "resolucion":          (1920, 1080),
     "fps":                 30,
     "duracion_total":      20,
@@ -54,6 +57,55 @@ CONFIG = {
         "crf":               23,
         "threads":           0,
 """
+
+# ==============================================================================
+# I18N — on-screen copy per language.
+# "Tal cara, tal beat" is the project's own name, so it is NEVER translated
+# and always appears verbatim, in every language.
+# ==============================================================================
+
+TEXTS = {
+    "ca": {
+        "landmarks_kicker": "Així és com...",
+        "landmarks_title":  "Et veu la IA!",
+        "artistas_kicker":  "Tal cara, tal beat t'ha identificat com...",
+        "artistas_caption": "ALTRES ARTISTES IDENTIFICATS",
+        "casa_kicker":      "Tal cara, tal beat t'identifica amb...",
+        "casa_title":       "la casa dels {nombre}",
+        "musica_kicker":    "Però...",
+        "musica_title":     "La música que sona és la teva identitat",
+    },
+    "es": {
+        "landmarks_kicker": "Así es como...",
+        "landmarks_title":  "¡Te ve la IA!",
+        "artistas_kicker":  "Tal cara, tal beat te ha identificado como...",
+        "artistas_caption": "OTROS ARTISTAS IDENTIFICADOS",
+        "casa_kicker":      "Tal cara, tal beat te identifica con...",
+        "casa_title":       "la casa de los {nombre}",
+        "musica_kicker":    "Pero...",
+        "musica_title":     "La música que suena es tu identidad",
+    },
+    "en": {
+        "landmarks_kicker": "This is how...",
+        "landmarks_title":  "AI sees you!",
+        "artistas_kicker":  "Tal cara, tal beat matched you with...",
+        "artistas_caption": "OTHER ARTISTS IDENTIFIED",
+        "casa_kicker":      "Tal cara, tal beat puts you in...",
+        "casa_title":       "the house of {nombre}",
+        "musica_kicker":    "But...",
+        "musica_title":     "The music playing is your identity",
+    },
+}
+
+DEFAULT_LANGUAGE = "ca"
+
+
+def get_texts(language):
+    """Returns the copy dict for `language`, falling back to the catalan
+    (original/default) set if the code isn't recognized."""
+    return TEXTS.get((language or "").strip().lower(), TEXTS[DEFAULT_LANGUAGE])
+
+
 # ==============================================================================
 # IMAGE UTILITIES
 # ==============================================================================
@@ -232,6 +284,9 @@ def headline(canvas, y, kicker, title, w, kicker_color=BRAND_YELLOW, title_color
 # Ya NO hay etapa intermedia "solo kicker": el texto completo aparece con un
 # fade simple al arrancar el bloque, y la/s foto/s entran después con su
 # propio fade — dos transiciones distintas, no una escalonada en 3 pasos.
+#
+# Los textos (kicker/título/caption) se resuelven vía get_texts(cfg["language"])
+# — "Tal cara, tal beat" nunca se traduce.
 # ==============================================================================
 
 def _bg_base(w, h, cfg):
@@ -243,7 +298,8 @@ def _bg_base(w, h, cfg):
 
 
 def build_landmarks(cfg, w, h, card_w, card_h):
-    kicker, title = "Així és com...", "Et veu la IA!"
+    t = get_texts(cfg.get("language"))
+    kicker, title = t["landmarks_kicker"], t["landmarks_title"]
 
     full = _bg_base(w, h, cfg)
     end_y = headline(full, 50, kicker, title, w)
@@ -264,6 +320,7 @@ def _bw(img_path):
 def build_artistas(cfg, w, h):
     """Tarjeta principal y círculos secundarios más grandes y más separados
     del texto (antes quedaban chicos y pegados)."""
+    t = get_texts(cfg.get("language"))
     artistas = cfg.get("artistas") or []
     ordenados = sorted(
         [a for a in artistas if a.get("image") and os.path.exists(a["image"])],
@@ -273,7 +330,7 @@ def build_artistas(cfg, w, h):
         blank = _bg_base(w, h, cfg).convert("RGB")
         return {"full_text": blank, "fotos": []}
 
-    kicker = "Tal cara, tal beat t'ha identificat com..."
+    kicker = t["artistas_kicker"]
     title = ordenados[0]["name"]
 
     full = _bg_base(w, h, cfg)
@@ -298,7 +355,7 @@ def build_artistas(cfg, w, h):
     if secundarios:
         d = ImageDraw.Draw(full)
         f_cap = cargar_fuente_display(30)
-        caption = "ALTRES ARTISTES IDENTIFICATS"
+        caption = t["artistas_caption"]
         cw = d.textbbox((0, 0), caption, font=f_cap)[2]
         d.text(((w - cw) // 2, caption_y), caption, font=f_cap, fill=(*BRAND_YELLOW, 255))
 
@@ -328,14 +385,15 @@ def build_artistas(cfg, w, h):
 
 
 def build_casa(cfg, w, h, card_w, card_h):
+    t = get_texts(cfg.get("language"))
     sticker_path = cfg.get("casa_sticker_path")
     nombre = cfg.get("casa_nombre", "").strip()
     if not (sticker_path and os.path.exists(sticker_path) and nombre):
         blank = _bg_base(w, h, cfg).convert("RGB")
         return {"full_text": blank, "fotos": []}
 
-    kicker = "Tal cara, tal beat t'identifica amb..."
-    title = f"la casa dels {nombre}"
+    kicker = t["casa_kicker"]
+    title = t["casa_title"].format(nombre=nombre)
 
     full = _bg_base(w, h, cfg)
     end_y = headline(full, 50, kicker, title, w)
@@ -350,7 +408,8 @@ def build_casa(cfg, w, h, card_w, card_h):
 
 
 def build_musica(cfg, w, h):
-    kicker, title = "Però...", "La música que sona és la teva identitat"
+    t = get_texts(cfg.get("language"))
+    kicker, title = t["musica_kicker"], t["musica_title"]
     canvas = Image.new("RGBA", (w, h), (*BRAND_YELLOW, 255))
     d = ImageDraw.Draw(canvas)
     f_kicker = cargar_fuente_display(70)
@@ -515,6 +574,7 @@ def generar_video(cfg=CONFIG):
     W, H = cfg["resolucion"]
     fps  = cfg["fps"]
     dur  = cfg["duracion_bloque"]
+    idioma = cfg.get("language", DEFAULT_LANGUAGE)
 
     w_left, w_right = calcular_split(
         cfg["polaroid_path"], W, H,
@@ -534,7 +594,7 @@ def generar_video(cfg=CONFIG):
     # since they no longer share one directory.
     workdir = tempfile.mkdtemp(prefix="festival_render_")
 
-    print("-> Rendering frames (PIL)...")
+    print(f"-> Rendering frames (PIL) [language={idioma}]...")
     cover_resize(Image.open(cfg["polaroid_path"]), w_left, H).save(f"{workdir}/left.jpg", quality=90)
 
     bloques = [
