@@ -22,3 +22,4 @@ diffusers==0.37.1
 accelerate==1.12.0
 pytorch_wavelets
 PyWavelets
+qrcode[pil]

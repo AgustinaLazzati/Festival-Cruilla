@@ -2,12 +2,13 @@ from enum import Enum, auto
 from pathlib import Path
 
 import gradio as gr
+import qrcode
 from loguru import logger
 from PIL import Image
 
 import config
-# from main import run_pipeline
 from main_parallel import run_pipeline
+from upload_utils import upload_results
 
 T_USER_VECT = tuple[str, str, str, str, str]  # mood, instrument, era, casa, locale
 
@@ -24,6 +25,7 @@ state: State = State.home
 user_image: Image.Image | None = None
 result_image: Image.Image | None = None
 user_vector: T_USER_VECT | None = None
+qr_out_image: Image.Image | None = None
 root_path = Path(__file__).parent
 
 # Assets paths
@@ -268,6 +270,16 @@ def set_user_vector(vector: tuple[str, str, str, str] | None):
     user_vector = vector
 
 
+def set_qr_out_image(image: Image.Image | None):
+    global qr_out_image
+    logger.debug(f"Set result QR image: {image}")
+    qr_out_image = image
+
+
+def get_qr_out_image():
+    return qr_out_image
+
+
 def on_button_qr_input(gr_text_qr_code):
     if gr_text_qr_code and state is State.home:
         logger.info(f"QR code text input: {gr_text_qr_code}")
@@ -293,6 +305,7 @@ def on_image_photo(gr_image_photo) -> str:
 
 def generate() -> str:
     try:
+        # Run generation
         mood, instrument, era, casa, locale = user_vector
         img_path = root_path / "user_image.png"
         out_path = root_path / "result_image.png"
@@ -310,6 +323,18 @@ def generate() -> str:
         )
         logger.success(f"Pipeline ran successfully: {result}")
         video_path = result["final_video"]
+        
+        # Upload results and create QR
+        try:
+            public_link = upload_results(video_path)
+            logger.info(f"Results uploaded: {public_link}")
+            qr_image = qrcode.make(public_link).get_image()
+            set_qr_out_image(qr_image)
+        except Exception as e:
+            logger.exception("Exception raised while uploading results")
+            gr.Warning(f"Exception raised while uploading results: {e}")
+        
+        # Update UI state
         set_state(State.results)
         return video_path
     except Exception as e:
@@ -324,7 +349,8 @@ def reset():
     set_user_image(None)
     set_user_vector(None)
     set_state(State.home)
-    return None
+    set_qr_out_image(None)
+    return None, None
 
 
 def on_timer_update_state():
@@ -374,15 +400,27 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
         gr_html_generating = gr.HTML(html_generating)
 
     with gr.Column(visible=state is State.results) as gr_col_result:
-        gr_video_results = gr.Video(
-            None,
-            show_label=False,
-            interactive=False,
-            autoplay=True,
-            show_share_button=False,
-            loop=True,
-        )
-        gr_button_result_restart = gr.Button("Restart")
+        with gr.Row():
+            with gr.Column(scale=1):
+                gr_image_result_qr = gr.Image(
+                    get_qr_out_image,
+                    show_download_button=False,
+                    show_share_button=False,
+                    show_fullscreen_button=False,
+                    show_label=False,
+                    elem_id="qr_image",
+                    every=1,
+                )
+                gr_button_result_restart = gr.Button("Restart")
+            gr_video_results = gr.Video(
+                None,
+                show_label=False,
+                interactive=False,
+                autoplay=True,
+                show_share_button=False,
+                loop=True,
+                scale=10,
+            )
 
     gr_button_qr_input.click(
         on_button_qr_input,
@@ -402,7 +440,7 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
     )
     gr_button_result_restart.click(
         reset,
-        outputs=gr_video_results,
+        outputs=[gr_video_results, gr_image_photo],
         show_progress=False,
     )
     gr_timer_update_state.tick(
