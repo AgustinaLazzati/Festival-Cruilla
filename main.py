@@ -28,34 +28,22 @@ OUTPUT_IMAGES_DIR = OUTPUT_DIR / "images"
 OUTPUT_MUSIC_DIR  = OUTPUT_DIR / "music"
 OUTPUT_VIDEO_DIR  = OUTPUT_DIR / "final_video"
 
-# ── Tribe to background image mapping (Localized) ──────────────────────────
-# Assumes backgrounds are organized into language subfolders inside inputs/
+# ── Canonical tribes: urban · indie · rock · pop · tecno ───────────────────
+# Background files per language live at inputs/{lang}/bg_{tribe}.png
+# Note: the file on disk is bg_rockstar.png but the canonical key is "rock".
 TRIBE_BACKGROUNDS: dict[str, dict[str, str]] = {
-    "ca": {
-        "urban":       str(ASSET_DIR / "ca" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "ca" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "ca" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "ca" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "ca" / "bg_tecno.png"),
-    },
-    "es": {
-        "la calle":       str(ASSET_DIR / "es" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "es" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "es" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "es" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "es" / "bg_tecno.png"),
-    },
-    "en": {
-        "la calle":       str(ASSET_DIR / "en" / "bg_urban.png"),
-        "indie":   str(ASSET_DIR / "en" / "bg_indie.png"),
-        "los romanticos": str(ASSET_DIR / "en" / "bg_romantics.png"),
-        "rockstar":    str(ASSET_DIR / "en" / "bg_rockstar.png"),
-        "tecno":  str(ASSET_DIR / "en" / "bg_tecno.png"),
+    lang: {
+        "urban": str(ASSET_DIR / lang / "bg_urban.png"),
+        "indie": str(ASSET_DIR / lang / "bg_indie.png"),
+        "rock":  str(ASSET_DIR / lang / "bg_rockstar.png"),
+        "pop":   str(ASSET_DIR / lang / "bg_pop.png"),
+        "tecno": str(ASSET_DIR / lang / "bg_tecno.png"),
     }
+    for lang in ("ca", "es", "en")
 }
 
-TEXT_BAND_FRACTION = 0.22     
-SUBJECT_HEIGHT_FRACTION = 0.72 
+TEXT_BAND_FRACTION = 0.22
+SUBJECT_HEIGHT_FRACTION = 0.72
 
 
 # ── Helper ─────────────────────────────────────────────────────────────────
@@ -197,21 +185,9 @@ def step_background(
     lang_backgrounds = TRIBE_BACKGROUNDS.get(language, TRIBE_BACKGROUNDS["ca"])
     bg_path = lang_backgrounds.get(tribe_key)
 
-    if bg_path is None:
-        # Partial-match fallback
-        for key, path in lang_backgrounds.items():
-            if key in tribe_key or tribe_key in key:
-                bg_path = path
-                print(f"[background] Partial match: '{raw_tribe}' → '{key}' in lang '{language}'")
-                break
-
     if bg_path is None or not Path(bg_path).exists():
-        print(
-            f"[background] ✗ No background found for tribe '{raw_tribe}' in lang '{language}'.\n"
-            f"             Normalised key: '{tribe_key}'\n"
-            f"             Known keys: {list(lang_backgrounds.keys())}\n"
-            f"             Expected file: {bg_path}"
-        )
+        known = list(lang_backgrounds.keys())
+        print(f"[background] ✗ Unknown tribe '{raw_tribe}' (key='{tribe_key}'). Known: {known}")
         return None
 
     print(f"[background] '{raw_tribe}' ({language}) →  {bg_path}")
@@ -276,7 +252,13 @@ def step_video(image_path: str, audio_path: str, output_path: str) -> str | None
         video = ImageClip(image_path, duration=audio.duration).with_audio(audio)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        video.write_videofile(output_path, fps=1, logger=None)
+        video.write_videofile(
+            output_path,
+            fps=1,
+            codec="libx264",
+            audio_codec="aac",
+            logger=None,
+        )
         video.close()
         audio.close()
 

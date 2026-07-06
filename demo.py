@@ -6,9 +6,10 @@ from loguru import logger
 from PIL import Image
 
 import config
-from main import run_pipeline
+# from main import run_pipeline
+from main_parallel import run_pipeline
 
-T_USER_VECT = tuple[str, str, str, str]  # mood, instrument, era, locale
+T_USER_VECT = tuple[str, str, str, str, str]  # mood, instrument, era, casa, locale
 
 
 class State(Enum):
@@ -226,19 +227,27 @@ def parse_qr(gr_text_qr_code: str) -> T_USER_VECT:
         "3": "futuristic",
         "4": "actual",
     }
+    casa_dict = {
+        "1": "urban",
+        "2": "pop",
+        "3": "techno",
+        "4": "indie",
+        "5": "rock",
+    }
     locale_dict = {
         "1": "ca",
         "2": "es",
         "3": "en",
     }
 
-    mood, instrument, era, locale = gr_text_qr_code.split(",")
+    mood, instrument, era, casa, locale = gr_text_qr_code.split(",")
 
     mood = mood_dict[mood]
     instrument = instrument_dict[instrument]
     era = era_dict[era]
+    casa = casa_dict[casa]
     locale = locale_dict[locale]
-    return mood, instrument, era, locale
+    return mood, instrument, era, casa, locale
 
 
 def set_state(new_state: State):
@@ -273,17 +282,18 @@ def on_button_qr_input(gr_text_qr_code):
     return ""
 
 
-def on_image_photo(gr_image_photo):
+def on_image_photo(gr_image_photo) -> str:
+    video_path = None
     set_user_image(gr_image_photo)
     if gr_image_photo is not None:
         set_state(State.generating)
-        generate()
-    return
+        video_path = generate()
+    return video_path
 
 
-def generate():
+def generate() -> str:
     try:
-        mood, instrument, era, locale = user_vector
+        mood, instrument, era, casa, locale = user_vector
         img_path = root_path / "user_image.png"
         out_path = root_path / "result_image.png"
         user_image.save(img_path)
@@ -294,16 +304,19 @@ def generate():
             mood=mood,
             instrument=instrument,
             era=era,
+            casa=casa,
             language=locale,
             skip_music=False,
         )
         logger.success(f"Pipeline ran successfully: {result}")
-        # TODO: set results image and audio
+        video_path = result["final_video"]
         set_state(State.results)
+        return video_path
     except Exception as e:
         logger.exception("Exception raised in generation")
         gr.Warning(f"Error in generation: {e}")
         reset()
+    return None
 
 
 def reset():
@@ -311,6 +324,7 @@ def reset():
     set_user_image(None)
     set_user_vector(None)
     set_state(State.home)
+    return None
 
 
 def on_timer_update_state():
@@ -360,13 +374,13 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
         gr_html_generating = gr.HTML(html_generating)
 
     with gr.Column(visible=state is State.results) as gr_col_result:
-        gr_image_results = gr.Image(
+        gr_video_results = gr.Video(
             None,
-            show_download_button=False,
-            show_share_button=False,
-            show_fullscreen_button=False,
             show_label=False,
             interactive=False,
+            autoplay=True,
+            show_share_button=False,
+            loop=True,
         )
         gr_button_result_restart = gr.Button("Restart")
 
@@ -383,11 +397,12 @@ with gr.Blocks(js=main_js, css=main_css) as demo:
     gr_image_photo.input(
         on_image_photo,
         gr_image_photo,
-        # [gr_image_pet, gr_image_avatar, gr_result_qr_image],
+        gr_video_results,
         show_progress=False,
     )
     gr_button_result_restart.click(
         reset,
+        outputs=gr_video_results,
         show_progress=False,
     )
     gr_timer_update_state.tick(

@@ -3,21 +3,21 @@ import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
 
+CANONICAL_CSV = "/home/spG07/data/Fake_Artist.csv"
+
 class FakeArtistsDataset(Dataset):
-    def __init__(self, root_dir: str, transform=None):
+    def __init__(self, root_dir: str, csv_path: str = CANONICAL_CSV, transform=None):
         self.root_dir = root_dir
         self.transform = transform
 
-        # Load CSV file
-        csv_path = os.path.join(root_dir, "Fake_Artist.csv")
         self.artist_df = pd.read_csv(csv_path)
 
         # Build samples: one entry per artist folder
         # Sample: (list_of_image_paths, artist_name)
         self.samples = []
 
-        for folder_idx in range(1, len(self.artist_df)+1):
-            artist_name = self.artist_df.iloc[folder_idx-1, 0]
+        for folder_idx in range(2, len(self.artist_df)+2):
+            artist_name = self.artist_df.iloc[folder_idx-2, 0]
             folder_path = os.path.join(root_dir, str(folder_idx))
 
             if not os.path.isdir(folder_path):

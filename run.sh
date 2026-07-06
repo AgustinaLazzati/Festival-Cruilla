@@ -25,9 +25,9 @@ conda activate sp_env
 
 #python3 /hhome/ps2g07/code/Festival-Cruilla/face2label/models/train_auraface.py
 #python3 /hhome/ps2g07/code/Festival-Cruilla/models/ACE-Step-1.5/generate.py
-python3 /hhome/ps2g07/code/Festival-Cruilla/main.py \
-  --image "/export/hhome/ps2g07/code/Festival-Cruilla/inputs/cruilla_guy.png" \
+python3 main.py \
+  --image "/home/spG07/data/sonia1.jpg" \
   --mood sad \
   --instrument guitar \
-  --era actual \ 
+  --era actual \
   --with-music
