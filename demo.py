@@ -33,6 +33,9 @@ camera_button_path = str(root_path / "res/camera.png").replace("\\", "/")
 
 # Page CSS
 main_css = f"""
+body, gradio-app, .gradio-container {{
+    background: #ffec04 !important;
+}}
 #qr_code_text {{
     position: fixed;
     left: -9999px;
@@ -312,8 +315,8 @@ def generate() -> str:
         user_image.save(img_path)
         logger.info("Running pipeline")
         result = run_pipeline(
-            image_path=img_path,
-            output_path=out_path,
+            image_path=str(img_path),
+            output_path=str(out_path),
             mood=mood,
             instrument=instrument,
             era=era,
@@ -323,6 +326,7 @@ def generate() -> str:
         )
         logger.success(f"Pipeline ran successfully: {result}")
         video_path = result["final_video"]
+        logger.debug(f"Video path: {video_path}")
         
         # Upload results and create QR
         try:
