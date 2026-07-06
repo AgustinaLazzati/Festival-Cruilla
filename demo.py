@@ -331,10 +331,11 @@ def generate() -> str:
         # Upload results and create QR
         if config.upload_results:
             try:
-                public_link = upload_results(video_path, config.upload_prefix)
+                public_link = upload_results(video_path, config.upload_gen_prefix)
                 logger.info(f"Results uploaded: {public_link}")
                 qr_image = qrcode.make(public_link).get_image()
                 set_qr_out_image(qr_image)
+                upload_results(img_path, config.upload_inp_prefix)
             except Exception as e:
                 logger.exception("Exception raised while uploading results")
                 gr.Warning(f"Exception raised while uploading results: {e}")
