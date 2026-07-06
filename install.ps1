@@ -1,7 +1,13 @@
 # Creates a Python venv and installs requirements.txt
-# Usage: powershell -ExecutionPolicy Bypass -File install.ps1 [-Cuda cu124]
+# Usage: powershell -ExecutionPolicy Bypass -File install.ps1 [-Cuda cu128]
+#
+# Default is cu128 because it's the minimum PyTorch CUDA build with kernels
+# for Blackwell GPUs (RTX 50-series, sm_120). Older builds (e.g. cu124) install
+# fine but fail at runtime with:
+#   RuntimeError: CUDA error: no kernel image is available for execution on the device
+# Check your GPU/driver with `nvidia-smi` before overriding this.
 param(
-    [string]$Cuda = "cu124"   # e.g. cu118, cu121, cu124, or cpu
+    [string]$Cuda = "cu128"   # e.g. cu118, cu121, cu124, cu128, cu130, or cpu
 )
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +16,7 @@ $venv = Join-Path $root ".venv"
 
 # Pick a Python launcher
 $py = (Get-Command py -ErrorAction SilentlyContinue)
-if ($py) { $python = "py"; $pythonArgs = @("-3.10") } else { $python = "python"; $pythonArgs = @() }
+if ($py) { $python = "py"; $pythonArgs = @("-3.11") } else { $python = "python"; $pythonArgs = @() }
 
 if (-not (Test-Path $venv)) {
     Write-Host "Creating venv at $venv"
@@ -25,7 +31,7 @@ Write-Host "Upgrading pip"
 & $vpython -m pip install --upgrade pip
 
 Write-Host "Installing torch ($Cuda)"
-& $vpython -m pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url "https://download.pytorch.org/whl/$Cuda"
+& $vpython -m pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url "https://download.pytorch.org/whl/$Cuda"
 
 Write-Host "Installing requirements"
 & $vpython -m pip install -r (Join-Path $root "requirements.txt")
