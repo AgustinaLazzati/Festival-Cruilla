@@ -23,7 +23,8 @@ SERVER_ROOT_PATH = os.environ["SERVER_ROOT_PATH"]
 SERVER_PUBLIC_URL = os.environ["SERVER_PUBLIC_URL"]
 
 
-def upload_results(file: Path, prefix: str) -> str:
+def upload_results(file: Path | str, prefix: str) -> str:
+    file = Path(file)
     target_filename = f"{prefix}{uuid.uuid4().hex}{file.suffix}"
     target_file_path = SERVER_ROOT_PATH.format(target_filename)
 
