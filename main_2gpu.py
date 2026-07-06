@@ -273,7 +273,7 @@ def step_rich_video(
     language: str,
     output_path: str,
 ) -> str | None:
-    from newvideo import generar_video
+    from videoFERNANDO import generar_video
 
     casa_key = _normalise_tribe(casa)
     cfg = {
