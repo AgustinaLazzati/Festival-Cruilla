@@ -115,9 +115,7 @@ def step_music(
         mood=mood,
         instrument=instrument,
         era=era,
-        genre=artist_match.get("genre", "pop"),
-        tribe=artist_match.get("tribe", artist_match.get("genre", "pop")),
-        artist_confidence=artist_match.get("confidence", 0),
+        casa=casa,
         duration_seconds=20,
     )
 

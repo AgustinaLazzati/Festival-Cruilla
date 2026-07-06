@@ -202,8 +202,8 @@ def step_background(
     r, g, b, _   = subject.split()
     subject      = Image.merge("RGBA", (r, g, b, alpha_edge))
 
-    text_band_px = int(bg_h * TEXT_BAND_FRACTION)
-    usable_h     = bg_h - text_band_px
+    text_band_px = int((bg_h * TEXT_BAND_FRACTION))
+    usable_h     = bg_h - text_band_px 
 
     target_h = int(usable_h * SUBJECT_HEIGHT_FRACTION)
     scale    = target_h / subject.height
@@ -211,7 +211,7 @@ def step_background(
     subject  = subject.resize((target_w, target_h), Image.LANCZOS)
 
     paste_x = (bg_w - target_w) // 2
-    paste_y = usable_h - target_h
+    paste_y = usable_h - target_h + 13
 
     composite = background.copy()
     composite.paste(subject, (paste_x, paste_y), subject)
@@ -220,6 +220,7 @@ def step_background(
     composite.convert("RGB").save(output_path, quality=95)
     print(f"[background] Póster guardado → {output_path}")
     return output_path
+
 
 # ==============================================================================
 # STEP 5 — RICH VIDEO GENERATION (via final_video/video.py)
