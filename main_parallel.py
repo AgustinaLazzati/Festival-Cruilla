@@ -120,6 +120,24 @@ def step_clothing(user_image_path: str, artist_match: dict, output_path: str,
     )
 
 # ==============================================================================
+# STEP 2b — LANDMARK EXTRACTION (face mesh + pose skeleton visualisation)
+# ==============================================================================
+def step_landmarks(user_image_path: str, landmarks_path: str) -> bool:
+    import cv2
+    from clothing.Clothing import _get_landmarks, _save_landmarks
+
+    img = cv2.imread(user_image_path)
+    if img is None:
+        print(f"[landmarks] Cannot open image: {user_image_path}")
+        return False
+
+    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    face_lm, pose_lm = _get_landmarks(rgb)
+    _save_landmarks(img, face_lm, pose_lm, landmarks_path)
+    return True
+
+
+# ==============================================================================
 # STEP 3 — MUSIC GENERATION
 # ==============================================================================
 def step_music(
@@ -324,14 +342,14 @@ def workflow_crea_polaroid(image_path: str, output_path: str, language: str, tim
         return {"success": False, "error": "No face detected"}
 
     landmarks_path = str(OUTPUT_LANDMARKS_DIR / f"{stem}_landmarks.png")
-
     t_start = time.perf_counter()
-    styled_path = step_clothing(image_path, artist_match, output_path,
-                                landmarks_path=landmarks_path)
-    timings["step_clothing"] = time.perf_counter() - t_start
+    try:
+        step_landmarks(image_path, landmarks_path)
+    except Exception as e:
+        print(f"[landmarks] Failed: {e}")
+    timings["step_landmarks"] = time.perf_counter() - t_start
 
-    # Segment the original user image — no accessories, no landmark overlay —
-    # so ComfyUI receives a clean person cutout as its person input.
+    # Segment the original user image so ComfyUI receives a clean person cutout.
     t_start = time.perf_counter()
     segmented_output = str(OUTPUT_IMAGES_DIR / f"{stem}_segmented.png")
     try:
@@ -363,7 +381,6 @@ def workflow_crea_polaroid(image_path: str, output_path: str, language: str, tim
     return {
         "success":        True,
         "artist_match":   artist_match,
-        "styled_image":   styled_path,
         "tribe_poster":   tribe_poster,
         "landmarks_path": landmarks_path,
     }
@@ -446,7 +463,7 @@ def run_pipeline(
     return {
         "success":      True,
         "artist_match": artist_match,
-        "styled_image": image_result["styled_image"],
+        "styled_image": image_result.get("styled_image"),
         "tribe_poster": tribe_poster,
         "music":        music_result,
         "final_video":  final_video,

@@ -329,13 +329,8 @@ def run_pipeline(
     if artist_match is None:
         return {"success": False, "error": "No face detected in image", "timings": timings}
 
-    # ── Step 2 — clothing overlay ─────────────────────────────────────────
-    t_start = time.perf_counter()
-    styled_path = step_clothing(image_path, artist_match, output_path)
-    timings["step_clothing"] = time.perf_counter() - t_start
-
-    # Segment the original user image — no accessories, no landmark overlay —
-    # so ComfyUI receives a clean person cutout as its person input.
+    # ── Step 2 — segment user image ───────────────────────────────────────
+    # Segment the original user image so ComfyUI receives a clean person cutout.
     t_start = time.perf_counter()
     segmented_output = str(OUTPUT_IMAGES_DIR / f"{stem}_segmented.png")
     try:
@@ -388,7 +383,7 @@ def run_pipeline(
     return {
         "success":      True,
         "artist_match": artist_match,
-        "styled_image": styled_path,
+        "styled_image": None,
         "tribe_poster": tribe_poster,
         "music":        music_result,
         "final_video":  final_video,
@@ -431,7 +426,7 @@ if __name__ == "__main__":
         print(f"\nArtist       : {result['artist_match']['name']} "
               f"({result['artist_match']['confidence']}%)")
         print(f"Tribe        : {result['artist_match'].get('tribe', 'unknown')}")
-        if result["styled_image"]:
+        if result.get("styled_image"):
             print(f"Styled image : {result['styled_image']}")
         if result["tribe_poster"]:
             print(f"Tribe poster : {result['tribe_poster']}")
