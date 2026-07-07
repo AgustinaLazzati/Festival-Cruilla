@@ -87,6 +87,19 @@ def _normalise_tribe(raw: str) -> str:
     nfkd = unicodedata.normalize("NFKD", raw.strip())
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
+# "rock" is normalised to "rockstars" to match the accessory folder name.
+_TRIBE_ACCESSORY_FOLDER = {"rock": "rockstars"}
+
+def _pick_random_accessory(tribe_key: str, asset_dir: str) -> str | None:
+    import random
+    folder_name = _TRIBE_ACCESSORY_FOLDER.get(tribe_key, tribe_key)
+    for acc_root_name in ("accesories", "accessories"):
+        tribe_dir = Path(asset_dir) / acc_root_name / folder_name
+        if tribe_dir.is_dir():
+            pngs = [str(p) for p in tribe_dir.rglob("*.png") if p.is_file()]
+            return random.choice(pngs) if pngs else None
+    return None
+
 
 def _pin_gpu(gpu_id: int | None) -> None:
     """
@@ -257,6 +270,51 @@ def step_background(user_image_path: str, artist_match: dict, output_path: str,
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     composite.convert("RGB").save(output_path, quality=95)
     print(f"[background] Poster guardado → {output_path}")
+    return output_path
+
+# ==============================================================================
+# STEP 4b — COMFYUI POLAROID (AI compositing via remote ComfyUI server)
+# ==============================================================================
+def step_comfy_polaroid(
+    person_image: str,
+    artist_match: dict,
+    output_path: str,
+) -> str | None:
+    try:
+        from comfy_client import run_3ingredients_workflow
+    except ImportError as e:
+        print(f"[comfy] comfy_client unavailable: {e}")
+        return None
+
+    raw_tribe = artist_match.get("tribe", "")
+    tribe_key = _normalise_tribe(raw_tribe)
+
+    bg_path = TRIBE_BACKGROUNDS.get(tribe_key)
+    if not bg_path or not Path(bg_path).exists():
+        print(f"[comfy] No background for tribe '{raw_tribe}'")
+        return None
+
+    accessory_path = _pick_random_accessory(tribe_key, str(ASSET_DIR))
+    if not accessory_path:
+        print(f"[comfy] No accessories found for tribe '{tribe_key}'")
+        return None
+
+    print(f"[comfy] bg={Path(bg_path).name}  "
+          f"person={Path(person_image).name}  "
+          f"accessory={Path(accessory_path).name}")
+    try:
+        image_bytes = run_3ingredients_workflow(
+            base_image=bg_path,
+            person_image=person_image,
+            object_image=accessory_path,
+        )
+    except Exception as e:
+        print(f"[comfy] Workflow failed: {e}")
+        return None
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_bytes(image_bytes)
+    print(f"[comfy] Polaroid saved → {output_path}")
     return output_path
 
 # ==============================================================================
