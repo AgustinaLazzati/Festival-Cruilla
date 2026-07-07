@@ -24,7 +24,7 @@ import websocket  # pip install websocket-client
 SERVER_ADDRESS = "158.109.8.152:8188"
 HTTP_TIMEOUT   = 10    # seconds for upload / queue / history / download calls
 WS_TIMEOUT     = 300   # seconds to wait for the workflow to finish on the server
-WORKFLOW_PATH = "/home/spG07/code/Festival-Cruilla/3ingredient_api.json"
+WORKFLOW_PATH = "/home/cvcadmin/cruilla/Festival-Cruilla/3ingredient_api.json"
 
 # node ids in the workflow that take the three input images
 BASE_IMAGE_NODE = "30"
