@@ -1,33 +1,14 @@
 #!/bin/bash
-#SBATCH -n 4 # Number of cores
-#SBATCH -N 1 # Ensure that all cores are on one machine
-#SBATCH -D ./tmp # working directory
-#SBATCH -t 0-00:30 # Runtime in D-HH:MM
-#SBATCH -p dcca40 # Partition to submit to
-#SBATCH --mem 12288 # Requested 12GB of memory.
-#SBATCH -o %x_%u_%j.out # File to which STDOUT will be written
-#SBATCH -e %x_%u_%j.err # File to which STDERR will be written
-#SBATCH --gres=gpu:1 # Request 1 gpu
+# Activates the project venv and launches demo.py.
+# demo.py loads ACE-Step 1.5 in-process, so no separate API server is needed.
+set -e
 
-#module load cuda/11.8   
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-source ~/miniconda3/etc/profile.d/conda.sh
+if [ ! -f "$ROOT/.venv/bin/activate" ]; then
+    echo ".venv not found - run install.sh first"
+    exit 1
+fi
 
-export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
-
-
-conda activate sp_env
-
-#which python
-#python -c "import torch, transformers; print('torch=', torch.__version__); print('transformers=', transformers.__version__); print('file=', transformers.__file__); print('cuda=', torch.cuda.is_available())"
-#python -c "from transformers.configuration_utils import layer_type_validation; print('layer_type_validation OK')"
-#python -c "import einops, vector_quantize_pytorch; print('ok')"
-
-#python3 /hhome/ps2g07/code/Festival-Cruilla/face2label/models/train_auraface.py
-#python3 /hhome/ps2g07/code/Festival-Cruilla/models/ACE-Step-1.5/generate.py
-python3 main.py \
-  --image "/home/spG07/data/sonia1.jpg" \
-  --mood sad \
-  --instrument guitar \
-  --era actual \
-  --with-music
+source "$ROOT/.venv/bin/activate"
+python "$ROOT/demo.py"

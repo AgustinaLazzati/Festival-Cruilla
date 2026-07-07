@@ -227,3 +227,8 @@ models/auraface/2d106det.onnx
 models/auraface/.gitattributes
 models/auraface/README.md
 models/instantid/README.md
+
+/user_image.png
+/result_image.png
+/outputs/
+/Fake_Artists/
