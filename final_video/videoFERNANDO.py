@@ -8,59 +8,9 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
 
 # ==============================================================================
-# I18N — on-screen copy per language.
-# "Tal cara, tal beat" is the project's own name, so it is NEVER translated
-# and always appears verbatim, in every language.
-# ==============================================================================
-TEXTS = {
-    "ca": {
-        "intro":            "Cruïlla Presenta...\ncom et veu la IA",
-        "landmarks_kicker": "Així és com...",
-        "landmarks_title":  "Et veu la IA!",
-        "artistas_kicker":  "Tal cara, tal beat t'ha identificat com...",
-        "artistas_caption": "ALTRES ARTISTES IDENTIFICATS",
-        "casa_kicker":      "Tal cara, tal beat t'identifica amb...",
-        "casa_title":       "la casa dels {nombre}",
-        "musica_kicker":    "Però...",
-        "musica_title":     "La música que sona és la teva identitat",
-    },
-    "es": {
-        "intro":            "Cruïlla Presenta...\ncómo te ve la IA",
-        "landmarks_kicker": "Así es como...",
-        "landmarks_title":  "¡Te ve la IA!",
-        "artistas_kicker":  "Tal cara, tal beat te ha identificado como...",
-        "artistas_caption": "OTROS ARTISTAS IDENTIFICADOS",
-        "casa_kicker":      "Tal cara, tal beat te identifica con...",
-        "casa_title":       "la casa de los {nombre}",
-        "musica_kicker":    "Pero...",
-        "musica_title":     "La música que suena es tu identidad",
-    },
-    "en": {
-        "intro":            "Cruïlla Presents...\nhow AI sees you",
-        "landmarks_kicker": "This is how...",
-        "landmarks_title":  "AI sees you!",
-        "artistas_kicker":  "Tal cara, tal beat matched you with...",
-        "artistas_caption": "OTHER ARTISTS IDENTIFIED",
-        "casa_kicker":      "Tal cara, tal beat puts you in...",
-        "casa_title":       "the house of {nombre}",
-        "musica_kicker":    "But...",
-        "musica_title":     "The music playing is your identity",
-    },
-}
-
-DEFAULT_LANGUAGE = "ca"
-
-def get_texts(language):
-    """Returns the copy dict for `language`, falling back to the catalan
-    (original/default) set if the code isn't recognized."""
-    return TEXTS.get((language or "").strip().lower(), TEXTS[DEFAULT_LANGUAGE])
-
-# ==============================================================================
 # CONFIGURACIÓN
 # ==============================================================================
 CONFIG = {
-    "language":          "ca",  # "ca", "es", "en"
-    
     "polaroid_path":     "/home/spG07/code/Festival-Cruilla/final_video/img/image_tribe_poster_es.png",
     "fondo_derecha_path":"/home/spG07/code/Festival-Cruilla/final_video/img/fondo.png",
     "landmarks_path":    "/home/spG07/code/Festival-Cruilla/final_video/img/image_landmarks.png",
@@ -68,9 +18,9 @@ CONFIG = {
     "casa_sticker_path": "/home/spG07/code/Festival-Cruilla/final_video/casas/Casa_Urban.png",
     "casa_nombre":       "Urban",
     "artistas": [
-        {"name": "Lena Pulse", "confidence": 8,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/4/4_1.png"},
-        {"name": "Artista 2",  "confidence": 6,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/2/2_1.png"},
-        {"name": "Artista 3",  "confidence": 5,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/19/image (1).png"},
+        {"name": "Lena Pulse", "confidence": 8,  "image": "/home/spG07/data/Fake_Artists/4/4_1.png"},
+        {"name": "Artista 2",  "confidence": 6,  "image": "/home/spG07/data/Fake_Artists/2/2_1.png"},
+        {"name": "Artista 3",  "confidence": 5,  "image": "/home/spG07/data/Fake_Artists/19/image (1).png"},
     ],
     "output_path": "/home/spG07/code/Festival-Cruilla/final_video/resultado_FERNANDO.mp4",
 
@@ -84,8 +34,8 @@ CONFIG = {
     "threads":             4,
 
     "texto_fade_dur": 0.30,
-    "foto_delay":     0.45,
-    "foto_fade_dur":  0.40,
+    "foto_delay":      0.45,
+    "foto_fade_dur":   0.40,
 }
 
 BRAND_YELLOW = (255, 221, 35)
@@ -251,14 +201,12 @@ def _bg_dark(w, h, cfg):
     return Image.new("RGBA", (w, h), (*BRAND_INK, 255))
 
 def build_landmarks(cfg, w, h, card_w, card_h):
-    txt = get_texts(cfg.get("language"))
     full = _bg_dark(w, h, cfg)
-    end_y = headline(full, 60, txt["landmarks_kicker"], txt["landmarks_title"], w)
+    end_y = headline(full, 60, "Així és com...", "La IA et llegeix", w)
     card = rotar(polaroid_card(cfg["landmarks_path"], card_w, card_h), 4)
     return {"full_text": full.convert("RGB"), "fotos": [(card, w // 2, h // 2 + 80)]}
 
 def build_artistas(cfg, w, h):
-    txt = get_texts(cfg.get("language"))
     full = _bg_dark(w, h, cfg)
     artistas = cfg.get("artistas", [])
     ordenados = sorted([a for a in artistas if os.path.exists(a.get("image", ""))], key=lambda a: a.get("confidence", 0), reverse=True)
@@ -266,7 +214,7 @@ def build_artistas(cfg, w, h):
     if not ordenados:
         return {"full_text": full.convert("RGB"), "fotos": []}
         
-    end_y = headline(full, 60, txt["artistas_kicker"], ordenados[0]["name"], w)
+    end_y = headline(full, 60, "Tal cara, tal beat t'ha identificat com...", ordenados[0]["name"], w)
     
     avail = h - end_y - 40
     main_h = int(avail * 0.48)
@@ -281,7 +229,7 @@ def build_artistas(cfg, w, h):
         caption_y = main_cy + main_h // 2 + 70
         d = ImageDraw.Draw(full)
         f_cap = _cargar_fuente(35)
-        caption = txt["artistas_caption"]
+        caption = "ALTRES ARTISTES IDENTIFICATS"
         cw = d.textbbox((0, 0), caption, font=f_cap)[2]
         d.text(((w - cw) // 2, caption_y), caption, font=f_cap, fill=(*BRAND_YELLOW, 255))
         
@@ -300,12 +248,16 @@ def build_artistas(cfg, w, h):
             
     return {"full_text": full.convert("RGB"), "fotos": fotos}
 
+"""
 def build_casa(cfg, w, h, card_w, card_h):
-    txt = get_texts(cfg.get("language"))
     full = Image.new("RGBA", (w, h), (*BRAND_WHITE, 255))
-    
-    titulo_casa = txt["casa_title"].format(nombre=cfg.get("casa_nombre", ""))
-    end_y = headline(full, 60, txt["casa_kicker"], titulo_casa, w, kicker_color=BRAND_INK, title_color=BRAND_INK)
+    end_y = headline(full, 60, "Ets a casa...", "LA TEVA IDENTITAT", w, kicker_color=BRAND_INK, title_color=BRAND_INK)
+    sticker = contain_resize(Image.open(cfg["casa_sticker_path"]), card_w, card_h)
+    return {"full_text": full.convert("RGB"), "fotos": [(sticker, w // 2, h // 2 + 80)]}
+"""
+def build_casa(cfg, w, h, card_w, card_h):
+    full = Image.new("RGBA", (w, h), (*BRAND_WHITE, 255))
+    end_y = headline(full, 60, "Ets a casa...", "LA TEVA IDENTITAT", w, kicker_color=BRAND_INK, title_color=BRAND_INK)
     
     # 1. Cargar y redimensionar sticker original
     sticker_raw = contain_resize(Image.open(cfg["casa_sticker_path"]), card_w, card_h)
@@ -404,14 +356,13 @@ def _render_pane_frame(blk, w, h, n, frames_full, texto_fade_f, foto_delay_f, fo
 # MAIN GENERATOR
 # ==============================================================================
 def generar_video(cfg=CONFIG):
-    txt = get_texts(cfg.get("language"))
-    
     t0 = time.time()
     W, H = cfg["resolucion"]
     fps  = cfg["fps"]
     dur  = cfg["duracion_bloque"]
     
     # --- CÁLCULO ASIMÉTRICO DE LA POLAROID (PUNTO 1) ---
+    # Cargamos imagen original para ajustar contención vertical perfecta sin recortar
     img_polaroid_orig = Image.open(cfg["polaroid_path"])
     orig_w, orig_h = img_polaroid_orig.size
     w_polaroid = int(H * (orig_w / orig_h)) # Ancho exacto proporcional a la pantalla completa
@@ -430,7 +381,7 @@ def generar_video(cfg=CONFIG):
     # --------------------------------------------------------------------------
     # Capa 1 (Bloque 0) con división exacta y tamaño grande en la segunda línea
     b0_base = Image.new("RGBA", (W, H), (*BRAND_INK, 255))
-    draw_centered_huge_text(b0_base, txt["intro"], 58, BRAND_WHITE, custom_second_line_size=110)
+    draw_centered_huge_text(b0_base, "Cruïlla Presenta...\ncom et veu la IA", 58, BRAND_WHITE, custom_second_line_size=110)
 
     # Dos cruces blancas (esquinas superior-izq e inferior-der) sobre la Capa 1
     cross_size_b0 = int((min(W, H) * 0.14)+20)
@@ -439,6 +390,9 @@ def generar_video(cfg=CONFIG):
     b0_base.alpha_composite(cross_w1, (int((W * 0.04)+10), int(H * 0.06)))
     b0_base.alpha_composite(cross_w2, (W - cross_w2.width - int((W * 0.04)+20), H - cross_w2.height - int(H * 0.06)))
 
+    # Guardamos únicamente los frames del fade-in inicial (el resto del bloque es
+    # visualmente idéntico, así que se reutiliza un único frame estático vía ffmpeg
+    # -loop, evitando renderizar y codificar cientos de JPEGs redundantes en PIL).
     texto_fade_f = cfg["texto_fade_dur"] * fps
     frames_b0 = int(dur * fps)
     fade_frames_b0 = max(1, min(int(math.ceil(texto_fade_f)) + 1, frames_b0))
@@ -454,8 +408,7 @@ def generar_video(cfg=CONFIG):
     
     # Capa 3 (Bloque 2) con dos líneas
     b2_static = Image.new("RGBA", (W, H), (*BRAND_YELLOW, 255))
-    musica_text = f"{txt['musica_kicker']}\n{txt['musica_title']}"
-    draw_centered_huge_text(b2_static, musica_text, 90, BRAND_INK)
+    draw_centered_huge_text(b2_static, "Però la melodia que sona\nrepresenta la teva identitat", 90, BRAND_INK)
 
     # Dos cruces negras (esquinas superior-der e inferior-izq) sobre la Capa 3
     cross_size_b2 = int((min(W, H) * 0.14)+30)
@@ -472,6 +425,7 @@ def generar_video(cfg=CONFIG):
     pane_landmarks = build_landmarks(cfg, w_half, H, card_w, card_h)
     pane_artistas  = build_artistas(cfg, w_half, H)
     
+    # El Bloque 3 ahora usa el ancho asimétrico óptimo de la Polaroid sin recortes
     pane_casa      = build_casa(cfg, w_casa, H, int(w_casa * 0.65), int(w_casa * 0.65 / 1.1875))
     pane_polaroid_static = contain_resize(img_polaroid_orig, w_polaroid, H)
     pane_polaroid = {"full_text": pane_polaroid_static.convert("RGB"), "fotos": []}
@@ -486,6 +440,7 @@ def generar_video(cfg=CONFIG):
     
     loop_dur = (dur + cfg["duracion_transicion"]) - (n_anim / fps)
 
+    # Renderizador dinámico adaptado a anchos independientes por panel
     def _render_pane_sequence(args):
         prefix, blk, current_w = args
         for n in range(n_anim):
@@ -497,6 +452,7 @@ def generar_video(cfg=CONFIG):
             _render_pane_frame(blk, current_w, H, n_anim + k, frames_full, texto_fade_f, foto_delay_f, foto_fade_f, zoom_fn=loop_zoom_fn)\
                 .save(f"{workdir}/{prefix}_loop_{k:04d}.jpg", quality=90)
 
+    # Inyección de anchos calculados a la piscina paralela
     tasks = [
         ("landmarks", pane_landmarks, w_half),
         ("artists", pane_artistas, w_half),
@@ -525,8 +481,12 @@ def generar_video(cfg=CONFIG):
 
     cmd = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        # Secuencia de imágenes del Bloque 0: solo los frames del fade-in (con su fade-in
+        # ya pre-renderizado en PIL) + un frame estático repetido por ffmpeg (-loop) para
+        # el resto de la duración, en vez de cientos de JPEGs idénticos.
         "-framerate", str(fps), "-i", f"{workdir}/b0_frame_%04d.jpg",
         "-loop", "1", "-framerate", str(fps), "-t", str(b0_static_dur), "-i", f"{workdir}/b0_static.jpg",
+        # Resto de entradas estáticas y bucles dinámicos
         "-loop", "1", "-framerate", str(fps), "-t", str(d_full), "-i", f"{workdir}/b2_full.jpg",
         "-framerate", str(fps), "-i", f"{workdir}/landmarks_anim_%04d.jpg",
         "-stream_loop", "-1", "-framerate", str(fps), "-t", str(loop_dur), "-i", f"{workdir}/landmarks_loop_%04d.jpg",
@@ -540,14 +500,23 @@ def generar_video(cfg=CONFIG):
     ]
 
     filter_parts = [
+        # Ensamblaje Bloque 0 (fade-in pre-renderizado + frame estático repetido por ffmpeg)
         f"[0:v]format=yuv420p[b0_anim];[1:v]format=yuv420p[b0_loop];[b0_anim][b0_loop]concat=n=2:v=1:a=0,fps={fps}[blk0]",
+
+        # Ensamblaje Bloque 1 (Split Simétrico 50/50)
         f"[3:v]format=yuv420p[l_anim];[4:v]format=yuv420p[l_loop];[l_anim][l_loop]concat=n=2:v=1:a=0[l_full]",
         f"[5:v]format=yuv420p[r_anim];[6:v]format=yuv420p[r_loop];[r_anim][r_loop]concat=n=2:v=1:a=0[r_full]",
         f"[l_full][r_full]hstack=inputs=2,fps={fps}[blk1]",
+        
+        # Ensamblaje Bloque 3 (Split Asimétrico Adaptativo)
         f"[7:v]format=yuv420p[p_anim];[8:v]format=yuv420p[p_loop];[p_anim][p_loop]concat=n=2:v=1:a=0[p_full]",
         f"[9:v]format=yuv420p[c_anim];[10:v]format=yuv420p[c_loop];[c_anim][c_loop]concat=n=2:v=1:a=0[c_full]",
         f"[p_full][c_full]hstack=inputs=2,fps={fps}[blk3]",
+        
+        # Formatear Bloque Estático/Pre-renderizado de fondo (Capa 3)
         f"[2:v]format=yuv420p,fps={fps}[blk2]",
+        
+        # Cadena de transiciones encadenadas xfade nativas en C
         f"[blk0][blk1]xfade=transition=fade:duration={trans}:offset={off1}[x1]",
         f"[x1][blk2]xfade=transition=fade:duration={trans}:offset={off2}[x2]",
         f"[x2][blk3]xfade=transition=fade:duration={trans}:offset={off3}[video]"
