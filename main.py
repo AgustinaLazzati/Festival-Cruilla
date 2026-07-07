@@ -334,7 +334,22 @@ def run_pipeline(
     styled_path = step_clothing(image_path, artist_match, output_path)
     timings["step_clothing"] = time.perf_counter() - t_start
 
-    working_image = styled_path if styled_path else image_path
+    # Segment the original user image — no accessories, no landmark overlay —
+    # so ComfyUI receives a clean person cutout as its person input.
+    t_start = time.perf_counter()
+    segmented_output = str(OUTPUT_IMAGES_DIR / f"{stem}_segmented.png")
+    try:
+        from PIL import Image as _PILImage
+        from person_segmentation import remove_background_center_person
+        _orig = _PILImage.open(image_path).convert("RGB")
+        _seg  = remove_background_center_person(_orig)
+        _seg.save(segmented_output)
+        person_for_comfy = segmented_output
+        print(f"[segmentation] Saved → {segmented_output}")
+    except Exception as e:
+        print(f"[segmentation] Failed ({e}), using original image")
+        person_for_comfy = image_path
+    timings["step_segmentation"] = time.perf_counter() - t_start
 
     # ── Step 3 — music ────────────────────────────────────────────────────
     music_result = None
@@ -350,7 +365,7 @@ def run_pipeline(
     t_start = time.perf_counter()
     try:
         tribe_poster = step_comfy_polaroid(
-            person_image=working_image,
+            person_image=person_for_comfy,
             artist_match=artist_match,
             output_path=poster_output,
         )
