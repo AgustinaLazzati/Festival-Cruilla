@@ -329,22 +329,24 @@ def run_pipeline(
     if artist_match is None:
         return {"success": False, "error": "No face detected in image", "timings": timings}
 
-    # ── Step 2 — segment user image ───────────────────────────────────────
-    # Segment the original user image so ComfyUI receives a clean person cutout.
-    t_start = time.perf_counter()
-    segmented_output = str(OUTPUT_IMAGES_DIR / f"{stem}_segmented.png")
-    try:
-        from PIL import Image as _PILImage
-        from person_segmentation import remove_background_center_person
-        _orig = _PILImage.open(image_path).convert("RGB")
-        _seg  = remove_background_center_person(_orig)
-        _seg.save(segmented_output)
-        person_for_comfy = segmented_output
-        print(f"[segmentation] Saved → {segmented_output}")
-    except Exception as e:
-        print(f"[segmentation] Failed ({e}), using original image")
-        person_for_comfy = image_path
-    timings["step_segmentation"] = time.perf_counter() - t_start
+    # ── Step 2 — segment user image (disabled) ───────────────────────────
+    # Segmentation disabled — passing the original image directly to ComfyUI.
+    # Uncomment the block below to re-enable background removal before ComfyUI.
+    # t_start = time.perf_counter()
+    # segmented_output = str(OUTPUT_IMAGES_DIR / f"{stem}_segmented.png")
+    # try:
+    #     from PIL import Image as _PILImage
+    #     from person_segmentation import remove_background_center_person
+    #     _orig = _PILImage.open(image_path).convert("RGB")
+    #     _seg  = remove_background_center_person(_orig)
+    #     _seg.save(segmented_output)
+    #     person_for_comfy = segmented_output
+    #     print(f"[segmentation] Saved → {segmented_output}")
+    # except Exception as e:
+    #     print(f"[segmentation] Failed ({e}), using original image")
+    #     person_for_comfy = image_path
+    # timings["step_segmentation"] = time.perf_counter() - t_start
+    person_for_comfy = image_path
 
     # ── Step 3 — music ────────────────────────────────────────────────────
     music_result = None
