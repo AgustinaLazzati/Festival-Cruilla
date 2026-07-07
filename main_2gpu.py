@@ -49,8 +49,8 @@ sys.path.insert(0, str(REPO_ROOT / "final_video"))
 # ── Default artifact paths ─────────────────────────────────────────────────
 MODEL_PATH           = REPO_ROOT / "face2label" / "logs" / "artists_mlp.pth"
 LABELS_PATH          = REPO_ROOT / "face2label" / "logs" / "labels.json"
-METADATA_PATH        = Path("/home/spG07/data/Fake_Artist.csv")
-DATASET_DIR          = Path("/home/spG07/data/Fake_Artists")
+METADATA_PATH        = REPO_ROOT / "Fake_Artist.csv"
+DATASET_DIR          = REPO_ROOT / "Fake_Artists"
 ASSET_DIR            = REPO_ROOT / "inputs"
 OUTPUT_DIR           = REPO_ROOT / "outputs"
 OUTPUT_IMAGES_DIR    = OUTPUT_DIR / "images"

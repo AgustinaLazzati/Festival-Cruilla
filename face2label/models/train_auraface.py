@@ -21,7 +21,7 @@ from predictor import ArtistPredictor
 # Config
 # ------------------------------------------------
 REPO_ROOT = "/home/spG07/code/Festival-Cruilla"
-ROOT_DIR   = "/home/spG07/data/Fake_Artists"
+ROOT_DIR   = "/home/spG07/code/Festival-Cruilla/Fake_Artists"
 EPOCHS     = 50
 LR         = 1e-3
 VAL_SPLIT  = 0.2
@@ -72,7 +72,7 @@ def main():
         augmentation = None
 
     # --- Load dataset ---
-    CANONICAL_CSV = "/home/spG07/data/Fake_Artist.csv"
+    CANONICAL_CSV = "/home/spG07/code/Festival-Cruilla/Fake_Artist.csv"
     base_dataset = FakeArtistsDataset(root_dir=ROOT_DIR, csv_path=CANONICAL_CSV, transform=augmentation)
 
     # Build label: index mapping from artist names — preserve CSV row order
@@ -157,7 +157,7 @@ def main():
     predictor = ArtistPredictor(
         model_path=os.path.join(REPO_ROOT, "face2label/logs/artists_mlp.pth"),
         labels_path=os.path.join(REPO_ROOT, "face2label/logs/labels.json"),
-        metadata_path="/home/spG07/data/Fake_Artist.csv",
+        metadata_path="/home/spG07/code/Festival-Cruilla/Fake_Artist.csv",
     )
 
     results = predictor.evaluate(val_loader, ks=(1, 3, 5))

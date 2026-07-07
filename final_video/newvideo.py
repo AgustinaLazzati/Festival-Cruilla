@@ -18,9 +18,9 @@ CONFIG = {
     "casa_sticker_path": "/home/spG07/code/Festival-Cruilla/final_video/casas/Casa_Urban.png",
     "casa_nombre":       "Urban",
     "artistas": [
-        {"name": "Lena Pulse", "confidence": 8,  "image": "/home/spG07/data/Fake_Artists/4/4_1.png"},
-        {"name": "Artista 2",  "confidence": 6,  "image": "/home/spG07/data/Fake_Artists/2/2_1.png"},
-        {"name": "Artista 3",  "confidence": 5,  "image": "/home/spG07/data/Fake_Artists/19/image (1).png"},
+        {"name": "Lena Pulse", "confidence": 8,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/4/4_1.png"},
+        {"name": "Artista 2",  "confidence": 6,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/2/2_1.png"},
+        {"name": "Artista 3",  "confidence": 5,  "image": "/home/spG07/code/Festival-Cruilla/Fake_Artists/19/image (1).png"},
     ],
     "output_path": "/home/spG07/code/Festival-Cruilla/final_video/resultado_NV5.mp4",
 
