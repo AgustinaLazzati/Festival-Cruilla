@@ -31,17 +31,13 @@ OUTPUT_VIDEO_DIR  = OUTPUT_DIR / "final_video"
 # ── Canonical tribes: urban · indie · rock · pop · tecno ───────────────────
 # Background files per language live at inputs/{lang}/bg_{tribe}.png
 # Note: the file on disk is bg_rockstar.png but the canonical key is "rock".
-TRIBE_BACKGROUNDS: dict[str, dict[str, str]] = {
-    lang: {
-        "urban": str(ASSET_DIR / lang / "bg_urban.png"),
-        "indie": str(ASSET_DIR / lang / "bg_indie.png"),
-        "rock":  str(ASSET_DIR / lang / "bg_rockstar.png"),
-        "pop":   str(ASSET_DIR / lang / "bg_pop.png"),
-        "tecno": str(ASSET_DIR / lang / "bg_tecno.png"),
-    }
-    for lang in ("ca", "es", "en")
+TRIBE_BACKGROUNDS: dict[str, str] = {
+    "urban": str(ASSET_DIR / "backgrounds" / "bg_urban.png"),
+    "indie": str(ASSET_DIR / "backgrounds" / "bg_indie.png"),
+    "rock":  str(ASSET_DIR / "backgrounds" / "bg_rockstar.png"),
+    "pop":   str(ASSET_DIR / "backgrounds" / "bg_pop.png"),
+    "tecno": str(ASSET_DIR / "backgrounds" / "bg_tecno.png"),
 }
-
 TEXT_BAND_FRACTION = 0.22
 SUBJECT_HEIGHT_FRACTION = 0.72
 
@@ -160,79 +156,63 @@ def step_music(
 # ==============================================================================
 # STEP 4 — TRIBE BACKGROUND COMPOSITE
 # ==============================================================================
-
-def step_background(
-    user_image_path: str,
-    artist_match: dict,
-    output_path: str,
-    language: str = "ca"  # <--- Added language parameter here
-) -> str | None:
-
+# ==============================================================================
+# STEP 4 — COMPOSITE DE FONDO POR TRIBU (polaroid)
+# ==============================================================================
+def step_background(user_image_path: str, artist_match: dict, output_path: str,
+                     language: str = "ca") -> str | None:
     try:
         from rembg import remove
         from PIL import Image
     except ImportError as e:
-        print(f"[background] Missing dependency: {e}  →  pip install rembg pillow")
+        print(f"[background] Falta dependencia: {e}")
         return None
 
-    # ── 1. Resolve tribe → background path based on language ──────────────
-    raw_tribe  = artist_match.get("tribe", "")
-    tribe_key  = _normalise_tribe(raw_tribe)             
+    raw_tribe = artist_match.get("tribe", "")
+    tribe_key = _normalise_tribe(raw_tribe)
+
+    # --- MODIFIED: Directly fetch the universal background for the tribe ---
+    bg_path = TRIBE_BACKGROUNDS.get(tribe_key)
     
-    # Safely get the dictionary for the requested language (fallback to 'ca')
-    lang_backgrounds = TRIBE_BACKGROUNDS.get(language, TRIBE_BACKGROUNDS["ca"])
-    bg_path = lang_backgrounds.get(tribe_key)
-
     if bg_path is None or not Path(bg_path).exists():
-        known = list(lang_backgrounds.keys())
-        print(f"[background] ✗ Unknown tribe '{raw_tribe}' (key='{tribe_key}'). Known: {known}")
+        print(f"[background] Tribu desconocida o falta imagen '{raw_tribe}' (key='{tribe_key}')")
         return None
 
-    print(f"[background] '{raw_tribe}' ({language}) →  {bg_path}")
-
-    # ── 2. Load background ─────────────────────────────────────────────────
     background = Image.open(bg_path).convert("RGBA")
     bg_w, bg_h = background.size
 
-    # ── 3. Remove background from user photo ──────────────────────────────
-    print("[background] Removing subject background with rembg…")
     import numpy as np
     from PIL import ImageFilter
 
     user_img = Image.open(user_image_path)
-    subject  = remove(user_img)
+    subject = remove(user_img)
     if subject.mode != "RGBA":
         subject = subject.convert("RGBA")
 
-    alpha_arr    = np.array(subject.split()[3], dtype=np.uint8)
+    alpha_arr = np.array(subject.split()[3], dtype=np.uint8)
     alpha_binary = np.where(alpha_arr >= 100, 255, 0).astype(np.uint8)
-    alpha_edge   = Image.fromarray(alpha_binary).filter(ImageFilter.GaussianBlur(1.5))
-    r, g, b, _   = subject.split()
-    subject      = Image.merge("RGBA", (r, g, b, alpha_edge))
+    alpha_edge = Image.fromarray(alpha_binary).filter(ImageFilter.GaussianBlur(1.5))
+    r, g, b, _ = subject.split()
+    subject = Image.merge("RGBA", (r, g, b, alpha_edge))
 
-    # ── 4. Scale subject to fit above the text band ───────────────────────
-    text_band_px = int(bg_h * TEXT_BAND_FRACTION) 
-    usable_h     = bg_h - text_band_px             
+    text_band_px = int(bg_h * TEXT_BAND_FRACTION)
+    usable_h = bg_h - text_band_px
 
     target_h = int(usable_h * SUBJECT_HEIGHT_FRACTION)
-    scale    = target_h / subject.height
+    scale = target_h / subject.height
     target_w = int(subject.width * scale)
-    subject  = subject.resize((target_w, target_h), Image.LANCZOS)
+    subject = subject.resize((target_w, target_h), Image.LANCZOS)
 
-    # ── 5. Compute paste position ──────────────────────────────────────────
     paste_x = (bg_w - target_w) // 2
-    paste_y = usable_h - target_h      
+    paste_y = usable_h - target_h + 13
 
-    # ── 6. Composite ──────────────────────────────────────────────────────
     composite = background.copy()
-    composite.paste(subject, (paste_x, paste_y), subject)   
+    composite.paste(subject, (paste_x, paste_y), subject)
 
-    # ── 7. Save ───────────────────────────────────────────────────────────
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     composite.convert("RGB").save(output_path, quality=95)
-    print(f"[background] ✓ Poster saved → {output_path}")
+    print(f"[background] Poster guardado → {output_path}")
     return output_path
-
 
 # ==============================================================================
 # STEP 5 — VIDEO GENERATION
