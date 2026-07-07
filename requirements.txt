@@ -1,6 +1,7 @@
 numpy
 Pillow
 rembg
+ultralytics
 moviepy
 pandas
 huggingface_hub
