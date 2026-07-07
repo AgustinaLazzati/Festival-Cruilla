@@ -15,7 +15,7 @@ class ArtistPredictor:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         # Load label mapping
-        with open(labels_path, "r") as f:
+        with open(labels_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
             self.idx2label = {int(k): v for k, v in raw.items()}
 

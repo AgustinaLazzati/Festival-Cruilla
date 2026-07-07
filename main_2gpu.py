@@ -209,8 +209,8 @@ def step_music(mood: str, instrument: str, era: str, casa: str) -> dict | None:
 def step_background(user_image_path: str, artist_match: dict, output_path: str,
                      language: str = "ca") -> str | None:
     try:
-        from rembg import remove
         from PIL import Image
+        from person_segmentation import remove_background_center_person
     except ImportError as e:
         print(f"[background] Falta dependencia: {e}")
         return None
@@ -232,9 +232,7 @@ def step_background(user_image_path: str, artist_match: dict, output_path: str,
     from PIL import ImageFilter
 
     user_img = Image.open(user_image_path)
-    subject = remove(user_img)
-    if subject.mode != "RGBA":
-        subject = subject.convert("RGBA")
+    subject = remove_background_center_person(user_img)
 
     alpha_arr = np.array(subject.split()[3], dtype=np.uint8)
     alpha_binary = np.where(alpha_arr >= 100, 255, 0).astype(np.uint8)
