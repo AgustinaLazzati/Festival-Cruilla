@@ -59,7 +59,7 @@ OUTPUT_VIDEO_DIR     = OUTPUT_DIR / "final_video"
 OUTPUT_LANDMARKS_DIR = OUTPUT_DIR / "landmarks"
 CASAS_DIR            = REPO_ROOT / "final_video" / "casas"
 TEMPLATES_DIR        = REPO_ROOT / "final_video" / "templates"
-FONDO_DERECHA        = Path("/home/spG07/code/Festival-Cruilla/final_video/img/fondo.png")
+FONDO_DERECHA        = Path("/home/cvcadmin/cruilla/Festival-Cruilla/final_video/img/fondo.png")
 
 CASA_STICKERS = {
     "indie": str(CASAS_DIR / "Casa_Indie.png"),
@@ -90,15 +90,53 @@ def _normalise_tribe(raw: str) -> str:
 # "rock" is normalised to "rockstars" to match the accessory folder name.
 _TRIBE_ACCESSORY_FOLDER = {"rock": "rockstars"}
 
-def _pick_random_accessory(tribe_key: str, asset_dir: str) -> str | None:
+# accessory type (inputs/accesories/{casa}/{type}/) -> (name used in the
+# prompt, where on the body ComfyUI should place it).
+_ACCESSORY_PLACEMENT = {
+    "glasses":   ("a pair of glasses", "on the person's face, positioned directly over the eyes"),
+    "hats":      ("a hat",             "on top of the person's head, sitting naturally on the hair"),
+    "necklaces": ("a necklace",        "around the person's neck, resting on the chest"),
+}
+
+def _pick_random_accessory(tribe_key: str, asset_dir: str) -> tuple[str, str] | None:
+    """Returns (accessory_image_path, accessory_type) or None.
+
+    accessory_type is the name of the immediate parent folder (e.g. "hats",
+    "glasses", "necklaces"), used to tell ComfyUI what the object is and
+    where on the body to place it.
+    """
     import random
     folder_name = _TRIBE_ACCESSORY_FOLDER.get(tribe_key, tribe_key)
     for acc_root_name in ("accesories", "accessories"):
         tribe_dir = Path(asset_dir) / acc_root_name / folder_name
         if tribe_dir.is_dir():
-            pngs = [str(p) for p in tribe_dir.rglob("*.png") if p.is_file()]
-            return random.choice(pngs) if pngs else None
+            pngs = [p for p in tribe_dir.rglob("*.png") if p.is_file()]
+            if not pngs:
+                return None
+            chosen = random.choice(pngs)
+            return str(chosen), chosen.parent.name
     return None
+
+
+def _build_polaroid_prompt(accessory_type: str) -> str:
+    """Default 3-ingredient prompt, with the object paragraph made specific
+    to the accessory type and the body part it belongs on."""
+    label, placement = _ACCESSORY_PLACEMENT.get(
+        accessory_type, ("the accessory", "on the person, in a natural and context-appropriate position")
+    )
+    return (
+        "Use Image 1 as the base photo. Preserve its composition, framing, lighting style, "
+        "colors, design elements, text, logos, borders, and overall layout exactly as they are.\n\n"
+        "Take the person from Image 2 and place them naturally into the scene of Image 1. "
+        "Remove the original environment from Image 2 completely. Preserve the person's identity, "
+        "face, expression, hairstyle, body proportions, clothing, pose, and natural appearance.\n\n"
+        f"Image 3 shows {label}. Place it {placement}, matching the person's pose, scale, perspective, "
+        "and body position. It should look physically believable, with correct contact points, "
+        "shadows, occlusion, and lighting.\n\n"
+        "Blend the person and object seamlessly into Image 1. Match the lighting, color temperature, "
+        "contrast, sharpness, shadows, and perspective of the base photo. The final image should look "
+        "like a single real photograph, not a collage."
+    )
 
 
 def _pin_gpu(gpu_id: int | None) -> None:
@@ -289,18 +327,20 @@ def step_comfy_polaroid(
     if not bg_path or not Path(bg_path).exists():
         raise RuntimeError(f"No background image found for tribe '{raw_tribe}'")
 
-    accessory_path = _pick_random_accessory(tribe_key, str(ASSET_DIR))
-    if not accessory_path:
+    accessory = _pick_random_accessory(tribe_key, str(ASSET_DIR))
+    if not accessory:
         raise RuntimeError(f"No accessories found for tribe '{tribe_key}'")
+    accessory_path, accessory_type = accessory
 
     print(f"[comfy] bg={Path(bg_path).name}  "
           f"person={Path(person_image).name}  "
-          f"accessory={Path(accessory_path).name}")
+          f"accessory={Path(accessory_path).name} (type={accessory_type})")
 
     image_bytes = run_3ingredients_workflow(
         base_image=bg_path,
         person_image=person_image,
         object_image=accessory_path,
+        prompt=_build_polaroid_prompt(accessory_type),
     )
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
