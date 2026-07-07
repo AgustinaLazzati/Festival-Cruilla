@@ -233,38 +233,29 @@ def step_comfy_polaroid(
     person_image: str,
     artist_match: dict,
     output_path: str,
-) -> str | None:
-    try:
-        from comfy_client import run_3ingredients_workflow
-    except ImportError as e:
-        print(f"[comfy] comfy_client unavailable: {e}")
-        return None
+) -> str:
+    from comfy_client import run_3ingredients_workflow
 
     raw_tribe = artist_match.get("tribe", "")
     tribe_key = _normalise_tribe(raw_tribe)
 
     bg_path = TRIBE_BACKGROUNDS.get(tribe_key)
     if not bg_path or not Path(bg_path).exists():
-        print(f"[comfy] No background for tribe '{raw_tribe}'")
-        return None
+        raise RuntimeError(f"No background image found for tribe '{raw_tribe}'")
 
     accessory_path = _pick_random_accessory(tribe_key, str(ASSET_DIR))
     if not accessory_path:
-        print(f"[comfy] No accessories found for tribe '{tribe_key}'")
-        return None
+        raise RuntimeError(f"No accessories found for tribe '{tribe_key}'")
 
     print(f"[comfy] bg={Path(bg_path).name}  "
           f"person={Path(person_image).name}  "
           f"accessory={Path(accessory_path).name}")
-    try:
-        image_bytes = run_3ingredients_workflow(
-            base_image=bg_path,
-            person_image=person_image,
-            object_image=accessory_path,
-        )
-    except Exception as e:
-        print(f"[comfy] Workflow failed: {e}")
-        return None
+
+    image_bytes = run_3ingredients_workflow(
+        base_image=bg_path,
+        person_image=person_image,
+        object_image=accessory_path,
+    )
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_bytes(image_bytes)
@@ -343,11 +334,16 @@ def workflow_crea_polaroid(image_path: str, output_path: str, language: str, tim
 
     poster_output = str(OUTPUT_IMAGES_DIR / f"{stem}_tribe_poster_{language}.png")
     t_start = time.perf_counter()
-    tribe_poster = step_background(
-        user_image_path=working_image, artist_match=artist_match,
-        output_path=poster_output, language=language,
-    )
-    timings["step_background"] = time.perf_counter() - t_start
+    try:
+        tribe_poster = step_comfy_polaroid(
+            person_image=working_image,
+            artist_match=artist_match,
+            output_path=poster_output,
+        )
+    except Exception as e:
+        timings["step_comfy_polaroid"] = time.perf_counter() - t_start
+        return {"success": False, "error": f"[comfy] {e}", "timings": timings}
+    timings["step_comfy_polaroid"] = time.perf_counter() - t_start
 
     return {
         "success":        True,

@@ -48,6 +48,19 @@ def _normalise_tribe(raw: str) -> str:
     nfkd = unicodedata.normalize("NFKD", raw.strip())
     return "".join(c for c in nfkd if not unicodedata.combining(c)).lower()
 
+# "rock" is normalised to "rockstars" to match the accessory folder name.
+_TRIBE_ACCESSORY_FOLDER = {"rock": "rockstars"}
+
+def _pick_random_accessory(tribe_key: str, asset_dir: str) -> str | None:
+    import random
+    folder_name = _TRIBE_ACCESSORY_FOLDER.get(tribe_key, tribe_key)
+    for acc_root_name in ("accesories", "accessories"):
+        tribe_dir = Path(asset_dir) / acc_root_name / folder_name
+        if tribe_dir.is_dir():
+            pngs = [str(p) for p in tribe_dir.rglob("*.png") if p.is_file()]
+            return random.choice(pngs) if pngs else None
+    return None
+
 
 # ==============================================================================
 # STEP 1 — FACE -> ARTIST LABEL
@@ -213,6 +226,43 @@ def step_background(user_image_path: str, artist_match: dict, output_path: str,
     return output_path
 
 # ==============================================================================
+# STEP 4b — COMFYUI POLAROID (AI compositing via remote ComfyUI server)
+# ==============================================================================
+
+def step_comfy_polaroid(
+    person_image: str,
+    artist_match: dict,
+    output_path: str,
+) -> str:
+    from comfy_client import run_3ingredients_workflow
+
+    raw_tribe = artist_match.get("tribe", "")
+    tribe_key = _normalise_tribe(raw_tribe)
+
+    bg_path = TRIBE_BACKGROUNDS.get(tribe_key)
+    if not bg_path or not Path(bg_path).exists():
+        raise RuntimeError(f"No background image found for tribe '{raw_tribe}'")
+
+    accessory_path = _pick_random_accessory(tribe_key, str(ASSET_DIR))
+    if not accessory_path:
+        raise RuntimeError(f"No accessories found for tribe '{tribe_key}'")
+
+    print(f"[comfy] bg={Path(bg_path).name}  "
+          f"person={Path(person_image).name}  "
+          f"accessory={Path(accessory_path).name}")
+
+    image_bytes = run_3ingredients_workflow(
+        base_image=bg_path,
+        person_image=person_image,
+        object_image=accessory_path,
+    )
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(output_path).write_bytes(image_bytes)
+    print(f"[comfy] Polaroid saved → {output_path}")
+    return output_path
+
+# ==============================================================================
 # STEP 5 — VIDEO GENERATION
 # ==============================================================================
 
@@ -295,16 +345,19 @@ def run_pipeline(
     else:
         timings["step_music"] = 0.0
 
-    # ── Step 4 — tribe background composite ──────────────────────────────
+    # ── Step 4 — ComfyUI polaroid ─────────────────────────────────────────
     poster_output = str(OUTPUT_IMAGES_DIR / f"{stem}_tribe_poster_{language}.png")
     t_start = time.perf_counter()
-    tribe_poster  = step_background(
-        user_image_path=working_image,
-        artist_match=artist_match,
-        output_path=poster_output,
-        language=language  # <--- Passed language to background function
-    )
-    timings["step_background"] = time.perf_counter() - t_start
+    try:
+        tribe_poster = step_comfy_polaroid(
+            person_image=working_image,
+            artist_match=artist_match,
+            output_path=poster_output,
+        )
+    except Exception as e:
+        timings["step_comfy_polaroid"] = time.perf_counter() - t_start
+        return {"success": False, "error": f"[comfy] {e}", "timings": timings}
+    timings["step_comfy_polaroid"] = time.perf_counter() - t_start
 
     # ── Step 5 — video generation ─────────────────────────────────────────
     final_video = None
