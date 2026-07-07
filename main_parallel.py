@@ -62,15 +62,66 @@ def _normalise_tribe(raw: str) -> str:
 # "rock" is normalised to "rockstars" to match the accessory folder name.
 _TRIBE_ACCESSORY_FOLDER = {"rock": "rockstars"}
 
-def _pick_random_accessory(tribe_key: str, asset_dir: str) -> str | None:
+_ACCESSORY_PLACEMENT = {
+    "glasses": (
+        "a pair of glasses",
+        "on the person's face, resting on the bridge of the nose with the temples reaching to the sides of the head. "
+        "Scale the glasses so the frame spans only the width of the person's eyes — no wider than the face. "
+        "They must sit flush against the face as if physically worn, not floating or oversized.",
+    ),
+    "hats": (
+        "a hat",
+        "on top of the person's head, sitting naturally on the crown of the hair. "
+        "Size it proportionally to the head — the brim should not extend beyond shoulder width. "
+        "The hat must look like it is resting on the head, not floating above it.",
+    ),
+    "necklaces": (
+        "a necklace",
+        "around the person's neck, hanging naturally at chest level against the clothing or skin. "
+        "Scale it proportionally to the person's neck and torso — the pendant should be no larger than a fist. "
+        "The chain should follow the curvature of the neck and chest, not float in front of the body.",
+    ),
+}
+
+def _pick_random_accessory(tribe_key: str, asset_dir: str) -> tuple[str, str] | None:
+    """Returns (accessory_image_path, accessory_type) or None."""
     import random
     folder_name = _TRIBE_ACCESSORY_FOLDER.get(tribe_key, tribe_key)
     for acc_root_name in ("accesories", "accessories"):
         tribe_dir = Path(asset_dir) / acc_root_name / folder_name
         if tribe_dir.is_dir():
-            pngs = [str(p) for p in tribe_dir.rglob("*.png") if p.is_file()]
-            return random.choice(pngs) if pngs else None
+            pngs = [p for p in tribe_dir.rglob("*.png") if p.is_file()]
+            if not pngs:
+                return None
+            chosen = random.choice(pngs)
+            return str(chosen), chosen.parent.name
     return None
+
+
+def _build_polaroid_prompt(accessory_type: str) -> str:
+    label, placement = _ACCESSORY_PLACEMENT.get(
+        accessory_type,
+        (
+            "the accessory",
+            "on the person in a natural, proportionate position. "
+            "Scale it to a realistic, wearable size relative to the person's body — do not make it oversized.",
+        ),
+    )
+    return (
+        "Use Image 1 as the base photo. Preserve its composition, framing, lighting style, "
+        "colors, design elements, text, logos, borders, and overall layout exactly as they are.\n\n"
+        "Take the person from Image 2 and place them naturally into the scene of Image 1. "
+        "Remove the original environment from Image 2 completely. Preserve the person's identity, "
+        "face, expression, hairstyle, body proportions, clothing, pose, and natural appearance.\n\n"
+        f"Image 3 shows {label}. Place it {placement} "
+        "Match the person's pose, scale, and perspective. "
+        "The accessory must be correctly sized for a real human body — if it appears too large relative "
+        "to the person, scale it down until it looks naturally wearable. "
+        "Ensure correct contact points, shadows, occlusion, and lighting.\n\n"
+        "Blend everything seamlessly into Image 1. Match the lighting, color temperature, "
+        "contrast, sharpness, and perspective of the base photo. The final result should look "
+        "like a single real photograph, not a collage."
+    )
 
 # ==============================================================================
 # STEP 1 — FACE -> ARTIST LABEL (top-3 with images)
@@ -261,18 +312,20 @@ def step_comfy_polaroid(
     if not bg_path or not Path(bg_path).exists():
         raise RuntimeError(f"No background image found for tribe '{raw_tribe}'")
 
-    accessory_path = _pick_random_accessory(tribe_key, str(ASSET_DIR))
-    if not accessory_path:
+    accessory = _pick_random_accessory(tribe_key, str(ASSET_DIR))
+    if not accessory:
         raise RuntimeError(f"No accessories found for tribe '{tribe_key}'")
+    accessory_path, accessory_type = accessory
 
     print(f"[comfy] bg={Path(bg_path).name}  "
           f"person={Path(person_image).name}  "
-          f"accessory={Path(accessory_path).name}")
+          f"accessory={Path(accessory_path).name} (type={accessory_type})")
 
     image_bytes = run_3ingredients_workflow(
         base_image=bg_path,
         person_image=person_image,
         object_image=accessory_path,
+        prompt=_build_polaroid_prompt(accessory_type),
     )
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -93,9 +93,24 @@ _TRIBE_ACCESSORY_FOLDER = {"rock": "rockstars"}
 # accessory type (inputs/accesories/{casa}/{type}/) -> (name used in the
 # prompt, where on the body ComfyUI should place it).
 _ACCESSORY_PLACEMENT = {
-    "glasses":   ("a pair of glasses", "on the person's face, positioned directly over the eyes"),
-    "hats":      ("a hat",             "on top of the person's head, sitting naturally on the hair"),
-    "necklaces": ("a necklace",        "around the person's neck, resting on the chest"),
+    "glasses": (
+        "a pair of glasses",
+        "on the person's face, resting on the bridge of the nose with the temples reaching to the sides of the head. "
+        "Scale the glasses so the frame spans only the width of the person's eyes — no wider than the face. "
+        "They must sit flush against the face as if physically worn, not floating or oversized.",
+    ),
+    "hats": (
+        "a hat",
+        "on top of the person's head, sitting naturally on the crown of the hair. "
+        "Size it proportionally to the head — the brim should not extend beyond shoulder width. "
+        "The hat must look like it is resting on the head, not floating above it.",
+    ),
+    "necklaces": (
+        "a necklace",
+        "around the person's neck, hanging naturally at chest level against the clothing or skin. "
+        "Scale it proportionally to the person's neck and torso — the pendant should be no larger than a fist. "
+        "The chain should follow the curvature of the neck and chest, not float in front of the body.",
+    ),
 }
 
 def _pick_random_accessory(tribe_key: str, asset_dir: str) -> tuple[str, str] | None:
@@ -119,10 +134,13 @@ def _pick_random_accessory(tribe_key: str, asset_dir: str) -> tuple[str, str] | 
 
 
 def _build_polaroid_prompt(accessory_type: str) -> str:
-    """Default 3-ingredient prompt, with the object paragraph made specific
-    to the accessory type and the body part it belongs on."""
     label, placement = _ACCESSORY_PLACEMENT.get(
-        accessory_type, ("the accessory", "on the person, in a natural and context-appropriate position")
+        accessory_type,
+        (
+            "the accessory",
+            "on the person in a natural, proportionate position. "
+            "Scale it to a realistic, wearable size relative to the person's body — do not make it oversized.",
+        ),
     )
     return (
         "Use Image 1 as the base photo. Preserve its composition, framing, lighting style, "
@@ -130,11 +148,13 @@ def _build_polaroid_prompt(accessory_type: str) -> str:
         "Take the person from Image 2 and place them naturally into the scene of Image 1. "
         "Remove the original environment from Image 2 completely. Preserve the person's identity, "
         "face, expression, hairstyle, body proportions, clothing, pose, and natural appearance.\n\n"
-        f"Image 3 shows {label}. Place it {placement}, matching the person's pose, scale, perspective, "
-        "and body position. It should look physically believable, with correct contact points, "
-        "shadows, occlusion, and lighting.\n\n"
-        "Blend the person and object seamlessly into Image 1. Match the lighting, color temperature, "
-        "contrast, sharpness, shadows, and perspective of the base photo. The final image should look "
+        f"Image 3 shows {label}. Place it {placement} "
+        "Match the person's pose, scale, and perspective. "
+        "The accessory must be correctly sized for a real human body — if it appears too large relative "
+        "to the person, scale it down until it looks naturally wearable. "
+        "Ensure correct contact points, shadows, occlusion, and lighting.\n\n"
+        "Blend everything seamlessly into Image 1. Match the lighting, color temperature, "
+        "contrast, sharpness, and perspective of the base photo. The final result should look "
         "like a single real photograph, not a collage."
     )
 
